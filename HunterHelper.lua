@@ -4,10 +4,12 @@ local RANGED_INRANGE		= {0.0, 1.0, 0.0, 0.0}
 local RANGED_UNATTACKABLE	= {0.0, 1.0, 0.0, 0.0}
 local RANGED_ERROR			= {1.0, 1.0, 0.0, 0.3}
 local SPELL_AUTO_SHOT		= "Auto Shot"
+local AUTO_SHOT_TIP			= {Left1=SPELL_AUTO_SHOT}--, Left4="Requires Ranged Weapon"}
 local STR_ADDON_NAME		= "HunterHelper"
 local HH_AUTO_ACTIVATE		= "ACTIVATE"
 local HH_AUTO_STOP			= "STOP"
 local HH_AUTO_IGNORE		= "IGNORE"
+local HH_UPDATE_INTERVAL	= 0.05
 local nextCheck = GetTime()
 local autoShotSlot = nil
 local ttscan = CreateFrame("GameTooltip", "ttscan_", nil, "GameTooltipTemplate")
@@ -134,7 +136,7 @@ fhh:SetWidth(fhh:GetParent():GetWidth()/2)
 fhh:SetHeight(fhh:GetParent():GetHeight()/2)
 fhh:SetFrameStrata("DIALOG")
 fhh:SetPoint("CENTER",0,0)
-for _,evt in pairs({"ADDON_LOADED","SPELLS_CHANGED"}) do
+for _,evt in pairs({"ADDON_LOADED","SPELLS_CHANGED","ACTIONBAR_SLOT_CHANGED","PLAYER_ENTERING_WORLD"}) do
 	fhh:RegisterEvent(evt)
 end
 fhh:Show()
@@ -203,12 +205,11 @@ end
 
 local function CheckAutoShotInRange()
 	
-	nextCheck = GetTime() + 0.05 -- 50ms pause before we check range again
-	
-	if CheckActionSlot(ttscan, autoShotSlot, {Left1=SPELL_AUTO_SHOT,Left4="Requires Ranged Weapon"}) == false then
+	-- verify that the current autoShotSlot is indeed that of auto shot
+	if CheckActionSlot(ttscan, autoShotSlot, AUTO_SHOT_TIP) == false then
 		autoShotSlot = nil
 		debug("Auto Shot couldn't be found in action bar(s)")	
-		fhh:SetBackdropColor(unpack(RANGED_ERROR))		
+		fhh:SetBackdropColor(unpack(RANGED_ERROR))
 		return
 	end
 	
@@ -225,24 +226,20 @@ local function CheckAutoShotInRange()
 		
 end
 
-local function ScanForAutoShot()
-	if GetTime() < nextCheck then
-		return
-	end	
-	debug("scanning for Auto Shot action button ... ")
-	ttscan:SetOwner(UIParent,"ANCHOR_NONE")	
-	for i=0, 9999 do
-		if CheckActionSlot(ttscan, i, {Left1=SPELL_AUTO_SHOT, Left4="Requires Ranged Weapon"}) ~= false then
-			autoShotSlot = i
-			break
+local function ScanForAutoShot()		
+	debug("Scanning for Auto Shot action button ... ")
+	ttscan:SetOwner(UIParent,"ANCHOR_NONE")
+	for slotId=0,1000 do
+		ttscan:SetAction(slotId)
+		if CheckActionSlot(ttscan, slotId, AUTO_SHOT_TIP) ~= false then
+			debug("Located autoshot in slot "..slotId)
+			autoShotSlot = slotId			
+			return
 		end
 	end
-	if autoShotSlot ~= nil then
-		debug("Located autoshot in slot "..autoShotSlot)
-	else
-		nextCheck = GetTime() + 0.2 --  pause before we check if user added it again
-	end
-	return false
+	
+	debug("Unable to locate auto shot, will try again on next ACTIONBAR_SLOT_CHANGED")
+	fhh:SetBackdropColor(unpack(RANGED_ERROR))	
 end
 
 --[[
@@ -258,7 +255,7 @@ basically, if UseAction is invoked, we need to check if the action used was a ra
 and if it was then we will engage auto shot
 
 ]]
-
+  
 function Set(list)
 	local set = {}
 	for _, l in ipairs(list) do set[l] = true end
@@ -379,8 +376,8 @@ local function ScanHunterSpells()
 end
 
 fhh:SetScript("OnEvent", function()
-	if event == "ADDON_LOADED" and arg1 == STR_ADDON_NAME then		
-		
+	debug("OnEvent "..event)
+	if event == "ADDON_LOADED" and arg1 == STR_ADDON_NAME then
 		if HunterHelperDB == nil then
 			HunterHelperDB = {}
 		end
@@ -389,10 +386,15 @@ fhh:SetScript("OnEvent", function()
 			HunterHelperDB.EnabledSpells = {
 				["Scatter Shot"] = HH_AUTO_IGNORE -- flag as explicitly ignored
 			}
-		end
+		end		
+		print("Loaded Hunter Helper")
+	elseif event == "PLAYER_ENTERING_WORLD" then
+		-- initial spell book scan and auto shot action location
 		ScanHunterSpells()
-		
-		print("Loaded Hunter Helper "..arg1)
+		ScanForAutoShot()
+	elseif event == "ACTIONBAR_SLOT_CHANGED" then
+		-- whenever the action bar changes, scan it for auto shot
+		ScanForAutoShot()
 	elseif event == "SPELLS_CHANGED" then
 		-- maybe something new was added
 		ScanHunterSpells()
@@ -400,11 +402,9 @@ fhh:SetScript("OnEvent", function()
 end)
 
 fhh:SetScript("OnUpdate", function()
-
-	if autoShotSlot == nil then
-		ScanForAutoShot()
-	else
+	if autoShotSlot ~= nil then		
 		CheckAutoShotInRange()
+		nextCheck = GetTime() + HH_UPDATE_INTERVAL -- a pause before we check range again
 	end
 end)
 
