@@ -2,9 +2,9 @@ local _G = getfenv(0)
 local RANGED_OUTOFRANGE 	= {1.0, 0.0, 0.0, 0.3}
 local RANGED_INRANGE		= {0.0, 1.0, 0.0, 0.0}
 local RANGED_UNATTACKABLE	= {0.0, 1.0, 0.0, 0.0}
-local RANGED_ERROR			= {1.0, 1.0, 0.0, 0.3}
+local RANGED_HIDDEN			= {0.0, 0.0, 0.0, 0.0}
 local SPELL_AUTO_SHOT		= "Auto Shot"
-local AUTO_SHOT_TIP			= {Left1=SPELL_AUTO_SHOT}--, Left4="Requires Ranged Weapon"}
+local AUTO_SHOT_TIP			= {Left1=SPELL_AUTO_SHOT}--, Left4="Requires Ranged Weapon"} -- allows macros to be used on action bar
 local STR_ADDON_NAME		= "HunterHelper"
 local HH_AUTO_ACTIVATE		= "ACTIVATE"
 local HH_AUTO_STOP			= "STOP"
@@ -209,7 +209,7 @@ local function CheckAutoShotInRange()
 	if CheckActionSlot(ttscan, autoShotSlot, AUTO_SHOT_TIP) == false then
 		autoShotSlot = nil
 		debug("Auto Shot couldn't be found in action bar(s)")	
-		fhh:SetBackdropColor(unpack(RANGED_ERROR))
+		fhh:SetBackdropColor(unpack(RANGED_HIDDEN))
 		return
 	end
 	
@@ -239,7 +239,7 @@ local function ScanForAutoShot()
 	end
 	
 	debug("Unable to locate auto shot, will try again on next ACTIONBAR_SLOT_CHANGED")
-	fhh:SetBackdropColor(unpack(RANGED_ERROR))	
+	fhh:SetBackdropColor(unpack(RANGED_HIDDEN))	
 end
 
 --[[
@@ -481,7 +481,7 @@ SlashCmdList["HUNTERHELPER_SLASH"] = function(input)
 		|cFF00FF00/hh resetspells||rs|r
 		Reset all spell configurations to default. All ranged spells will have Auto Shot enforce enabled, except Scatter Shot.		
 		|cFF00FF00/hh alpha [in|out|err] <alpha value 0.0 to 1.0>|r
-		Set the alpha of the in-range, out-of-range, or error pane. if pane isn't specified, will set for all panes.
+		Set the alpha of the in-range, or out-of-range pane. if pane isn't specified, will set for all panes.
 		]])
 	elseif input == "resetspells" or input == "rs" then
 		if HunterHelperDB == nil then
@@ -499,8 +499,7 @@ SlashCmdList["HUNTERHELPER_SLASH"] = function(input)
 		if alphaValue == nil then
 			pane = params[2]
 			alphaValue = tonumber(params[3])			
-		end
-				
+		end				
 		
 		if  pane == "all" or pane == "out" then
 			RANGED_OUTOFRANGE[4] = alphaValue
@@ -508,10 +507,7 @@ SlashCmdList["HUNTERHELPER_SLASH"] = function(input)
 		if  pane == "all" or pane == "in" then
 			RANGED_INRANGE[4] = alphaValue
 		end
-		if  pane == "all" or pane == "err" then
-			RANGED_ERROR[4] = alphaValue
-		end
-		
+				
 	else
 		local spellName = params[2]
 		if spellName == nil then
