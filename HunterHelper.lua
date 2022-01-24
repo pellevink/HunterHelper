@@ -435,14 +435,14 @@ end
 
 local BLIZZ_GameTooltip_SetAction = GameTooltip.SetAction
 GameTooltip.SetAction = function(...)
-	print("GameTooltip.SetAction",unpack(arg))
+	debug("GameTooltip.SetAction",unpack(arg))
 	BLIZZ_GameTooltip_SetAction(unpack(arg))
 	AddToolTipInfo()	
 end
 
 local BLIZZ_GameTooltip_SetSpell = GameTooltip.SetSpell
 GameTooltip.SetSpell = function(...)
-	print("GameTooltip.SetSpell",unpack(arg))
+	debug("GameTooltip.SetSpell",unpack(arg))
 	BLIZZ_GameTooltip_SetSpell(unpack(arg))
 	AddToolTipInfo()
 end
