@@ -1,0 +1,9 @@
+## Interface: 11210
+## Title: HunterHelper
+## Version: 1
+## Notes: A tool for helping hunters with Auto Shot, range, etc. (/hh)
+## Author: Pellevink
+## SavedVariables: HunterHelperDB
+## OptionalDeps:
+## Dependencies:
+HunterHelper.lua
