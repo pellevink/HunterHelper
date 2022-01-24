@@ -4,6 +4,6 @@
 ## Notes: A tool for helping hunters with Auto Shot, range, etc. (/hh)
 ## Author: Pellevink
 ## SavedVariables: HunterHelperDB
-## OptionalDeps:
+## OptionalDeps: ScriptEditor
 ## Dependencies:
 HunterHelper.lua
