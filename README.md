@@ -6,6 +6,20 @@ In order to measure distance appropriately the Auto Shot spell must be dragged f
 By default, ALL hunter spells that require ranged weapons will be enabled, EXCEPT Scatter Shot.
 Any newly learned ranged spells will have the auto shot activation enabled.
 
+## Features
+
+## Spammable Auto Shot
+Whenever the player casts the Auto Shot spell (e.g. /cast Auto Shot, clicks the action button, etc.) the addon will ensure Auto Shot is cast. The original 1.12 client will treat auto shot as a toggle.
+
+### Auto Shot Auto Activation
+Whenever the player fires any ranged ability (e.g. Arcane Shot, Multi-Shot) the addon will enforce auto shot to commence. On the 1.12 cient, if the player is not in Auto Shot mode, and has low mana, or the ability is on cooldown, Auto Shot will not start - this addon enforces this activation.
+
+### Range Checker
+If the currently targetted enemy is inside minimum or outside maximum range for Auto Shot, a red pane will appear in the center of the screen. This feature requires Auto Shot to be dragged onto any Action Bar.
+
+### Pet Happiness Alert
+When your currently active pet loses a happiness level (Happy->Content, Content->Angry) the addon will alert with a "toast pane" on screen.
+
 ## Slash commands
 /hh e[nable]|d[isable]|i[gnore] [Spell Name]
 
