@@ -128,6 +128,71 @@ local function FindToolTipText(toolTip, text)
 	return nil
 end
 
+ftoast = CreateFrame("Frame", nil, WorldFrame)
+ftoast:SetBackdrop({bgFile = "Interface/ChatFrame/ChatFrameBackground"})
+ftoast:SetBackdropColor(0,0,0,0.5)
+ftoast.title = ftoast:CreateFontString("FontString")
+ftoast.title:SetFont("Fonts\\ARIALN.TTF", 12, "BOLD")
+ftoast.title:SetPoint("TOPLEFT", ftoast, "TOPLEFT", 2, -2)
+ftoast.title:SetPoint("BOTTOMRIGHT", ftoast, "TOPRIGHT", -2, -8)
+ftoast.title:SetJustifyV("TOP")
+ftoast.title:SetJustifyH("LEFT")
+ftoast.title:SetText("ALERT!")
+ftoast.msg = ftoast:CreateFontString("FontString")
+ftoast.msg:SetFont("Fonts\\ARIALN.TTF", 8, "NORMAL")
+ftoast.msg:SetPoint("TOPLEFT", ftoast.title, "BOTTOMLEFT", 0, 0)
+ftoast.msg:SetPoint("BOTTOMRIGHT", ftoast, -2, -2)
+ftoast.msg:SetJustifyH("LEFT")
+ftoast:SetWidth(ftoast:GetParent():GetWidth()*0.2)
+ftoast:SetHeight(ftoast:GetParent():GetHeight()*0.05)
+ftoast:SetPoint("BOTTOMRIGHT", ftoast:GetParent(),"BOTTOMRIGHT", -ftoast:GetParent():GetWidth()*0.01, ftoast:GetHeight()*0.5)
+ftoast:SetFrameStrata("DIALOG")
+ftoast:EnableMouse(true)
+ftoast:SetAlpha(0.5)
+ftoast.nextBlinkUpdate = nil
+ftoast.fblink = CreateFrame("Frame", nil, ftoast)
+ftoast.fblink:SetBackdrop({bgFile = "Interface/ChatFrame/ChatFrameBackground"})
+ftoast.fblink:SetBackdropColor(0,0,0,0)
+ftoast.fblink:SetAllPoints(ftoast.fblink:GetParent())
+ftoast:Hide()
+
+ftoast:SetScript("OnUpdate",function()	
+	if this.nextBlinkUpdate ~= nil and GetTime() >= this.nextBlinkUpdate then
+		if this.fblink:GetBackdropColor() == 0 then
+			this.fblink:SetBackdropColor(1,1,0,0.2)
+		else
+			this.fblink:SetBackdropColor(0,0,0,0)
+		end
+		this.nextBlinkUpdate = GetTime() + 0.5
+	end
+end)
+ftoast:SetScript("OnMouseUp", function()
+	this:Hide()
+end)
+ftoast:SetScript("OnEnter", function()
+	this.nextBlinkUpdate = nil
+	this.fblink:SetBackdropColor(0,0,0,0)
+	this:SetAlpha(1)
+end)
+ftoast:SetScript("OnLeave", function()
+	this:SetAlpha(0.5)
+end)
+
+function ShowToast(title, text)
+	if title ~= nil and text ~= nil then
+		PlaySoundFile("Interface\\AddOns\\HunterHelper\\sounds\\boing1.mp3")
+		ftoast.title:SetText(title)
+		ftoast.msg:SetText(text.."\n|cFF00FF00click to close|r")	
+		ftoast.nextBlinkUpdate = GetTime()
+		ftoast:SetAlpha(0.5)
+		ftoast:Show()
+	end
+end
+local HH_ERROR_AUTO_SHOT = "HunterHelper could not locate Auto Shot on your action bar. Drag Auto Shot from your spellbook into an open action bar slot, or a macro named Auto Shot."
+-- "HunterHelper could not locate Auto Shot on your action bar. Drag Auto Shot from your spellbook into an open action bar slot, or a macro named Auto Shot.\n|cFF00FF00click to close|r"
+--ShowToast("Alert!" , HH_ERROR_AUTO_SHOT)
+
+
 
 local fhh = CreateFrame("Frame", nil, WorldFrame)
 fhh:SetBackdrop({bgFile = "Interface/ChatFrame/ChatFrameBackground"})
@@ -209,6 +274,7 @@ local function CheckAutoShotInRange()
 	if CheckActionSlot(ttscan, autoShotSlot, AUTO_SHOT_TIP) == false then
 		autoShotSlot = nil
 		debug("Auto Shot couldn't be found in action bar(s)")	
+		ShowToast("Alert!" , HH_ERROR_AUTO_SHOT)
 		fhh:SetBackdropColor(unpack(RANGED_HIDDEN))
 		return
 	end
@@ -239,6 +305,7 @@ local function ScanForAutoShot()
 	end
 	
 	debug("Unable to locate auto shot, will try again on next ACTIONBAR_SLOT_CHANGED")
+	ShowToast("Alert!" , HH_ERROR_AUTO_SHOT)
 	fhh:SetBackdropColor(unpack(RANGED_HIDDEN))	
 end
 
