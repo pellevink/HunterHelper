@@ -130,7 +130,7 @@ end
 
 ftoast = CreateFrame("Frame", nil, WorldFrame)
 ftoast:SetBackdrop({bgFile = "Interface/ChatFrame/ChatFrameBackground"})
-ftoast:SetBackdropColor(0,0,0,0.5)
+ftoast:SetBackdropColor(0,0,0,1.0)
 ftoast.title = ftoast:CreateFontString("FontString")
 ftoast.title:SetFont("Fonts\\ARIALN.TTF", 12, "BOLD")
 ftoast.title:SetPoint("TOPLEFT", ftoast, "TOPLEFT", 2, -2)
@@ -148,7 +148,6 @@ ftoast:SetHeight(ftoast:GetParent():GetHeight()*0.05)
 ftoast:SetPoint("BOTTOMRIGHT", ftoast:GetParent(),"BOTTOMRIGHT", -ftoast:GetParent():GetWidth()*0.01, ftoast:GetHeight()*0.5)
 ftoast:SetFrameStrata("DIALOG")
 ftoast:EnableMouse(true)
-ftoast:SetAlpha(0.5)
 ftoast.nextBlinkUpdate = nil
 ftoast.fblink = CreateFrame("Frame", nil, ftoast)
 ftoast.fblink:SetBackdrop({bgFile = "Interface/ChatFrame/ChatFrameBackground"})
@@ -172,10 +171,8 @@ end)
 ftoast:SetScript("OnEnter", function()
 	this.nextBlinkUpdate = nil
 	this.fblink:SetBackdropColor(0,0,0,0)
-	this:SetAlpha(1)
 end)
 ftoast:SetScript("OnLeave", function()
-	this:SetAlpha(0.5)
 end)
 
 function ShowToast(title, text)
@@ -184,7 +181,6 @@ function ShowToast(title, text)
 		ftoast.title:SetText(title)
 		ftoast.msg:SetText(text.."\n|cFF00FF00click to close|r")	
 		ftoast.nextBlinkUpdate = GetTime()
-		ftoast:SetAlpha(0.5)
 		ftoast:Show()
 	end
 end
