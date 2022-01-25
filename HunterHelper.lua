@@ -3,7 +3,7 @@ local RANGED_OUTOFRANGE 	= {1.0, 0.0, 0.0, 0.3}
 local RANGED_INRANGE		= {0.0, 1.0, 0.0, 0.0}
 local RANGED_UNATTACKABLE	= {0.0, 1.0, 0.0, 0.0}
 local RANGED_HIDDEN			= {0.0, 0.0, 0.0, 0.0}
-local PET_HAPPINESS			= {"Unhappy", "Content", "Happy"}
+local PET_HAPPINESS			= {"Unhappy >:(", "Content :)", "Happy :D"}
 local SPELL_AUTO_SHOT		= "Auto Shot"
 local AUTO_SHOT_TIP			= {Left1=SPELL_AUTO_SHOT}--, Left4="Requires Ranged Weapon"} -- allows macros to be used on action bar
 local STR_ADDON_NAME		= "HunterHelper"
@@ -14,7 +14,7 @@ local HH_UPDATE_INTERVAL	= 0.05
 local HH_PETCHECK_INTERVAL	= 1.0
 local nextRangeCheck 		= GetTime()
 local nextPetCheck 			= GetTime()
-local petHappiness			= 10
+local petHappiness			= 3 -- initialize to happy
 local autoShotSlot 			= nil
 local ttscan = CreateFrame("GameTooltip", "ttscan_", nil, "GameTooltipTemplate")
 local BLIZZ_CastSpellByName = CastSpellByName
@@ -204,7 +204,7 @@ fhh:SetPoint("CENTER",0,0)
 for _,evt in pairs({"ADDON_LOADED","SPELLS_CHANGED","ACTIONBAR_SLOT_CHANGED","PLAYER_ENTERING_WORLD"}) do
 	fhh:RegisterEvent(evt)
 end
-fhh:Show()
+fhh:Hide()
 
 local function cfout(text)
 	_G["ChatFrame1"]:AddMessage( "|cFF00FF00[ash]|r "..tostring(text) )
@@ -293,10 +293,12 @@ local function CheckAutoShotInRange()
 end
 
 local function CheckPet()
-	local curHappy = GetPetHappiness()
-	if curHappy < petHappiness then
-		petHappiness = curHappy
-		ShowToast("Pet Happiness!","Your pet is currently "..tostring(PET_HAPPINESS[petHappiness]))
+	if GetUnitName("pet") ~= nil and GetPetHappiness() ~= nil then
+		local oldHappiness = petHappiness
+		petHappiness = GetPetHappiness()
+		if petHappiness < oldHappiness then
+			ShowToast("Pet Happiness!","Your pet is now "..tostring(PET_HAPPINESS[petHappiness]))
+		end
 	end
 end
 
@@ -467,6 +469,7 @@ fhh:SetScript("OnEvent", function()
 		-- initial spell book scan and auto shot action location
 		ScanHunterSpells()
 		ScanForAutoShot()
+		fhh:Show()
 	elseif event == "ACTIONBAR_SLOT_CHANGED" then
 		-- whenever the action bar changes, scan it for auto shot
 		ScanForAutoShot()
