@@ -10,7 +10,7 @@ local HH_AUTO_ACTIVATE		= "ACTIVATE"
 local HH_AUTO_STOP			= "STOP"
 local HH_AUTO_IGNORE		= "IGNORE"
 local HH_UPDATE_INTERVAL	= 0.05
-local nextCheck = GetTime()
+local nextRangeCheck = GetTime()
 local autoShotSlot = nil
 local ttscan = CreateFrame("GameTooltip", "ttscan_", nil, "GameTooltipTemplate")
 local BLIZZ_CastSpellByName = CastSpellByName
@@ -466,9 +466,9 @@ end)
 
 fhh:SetScript("OnUpdate", function()
 	if autoShotSlot ~= nil then		
-		if GetTime() >= nextCheck then
+		if GetTime() >= nextRangeCheck then
 			CheckAutoShotInRange()
-			nextCheck = GetTime() + HH_UPDATE_INTERVAL -- a pause before we check range again
+			nextRangeCheck = GetTime() + HH_UPDATE_INTERVAL -- a pause before we check range again
 		end
 	end
 end)
