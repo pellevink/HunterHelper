@@ -8,7 +8,7 @@ Any newly learned ranged spells will have the auto shot activation enabled.
 
 ## Features
 
-## Spammable Auto Shot
+### Spammable Auto Shot
 Whenever the player casts the Auto Shot spell (e.g. /cast Auto Shot, clicks the action button, etc.) the addon will ensure Auto Shot is cast. The original 1.12 client will treat auto shot as a toggle.
 
 ### Auto Shot Auto Activation
