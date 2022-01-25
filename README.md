@@ -25,4 +25,4 @@ Reset all spell configurations to default. All ranged spells will have Auto Shot
 
 /hh alpha [in|out|err] <alpha value 0.0 to 1.0>
 
-Set the alpha of the in-range, out-of-range, or error pane. if pane isn't specified, will set for all panes.
+Set the alpha of the in-range, or out-of-range pane. if pane isn't specified, will set for all panes.

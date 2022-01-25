@@ -2,16 +2,20 @@ local _G = getfenv(0)
 local RANGED_OUTOFRANGE 	= {1.0, 0.0, 0.0, 0.3}
 local RANGED_INRANGE		= {0.0, 1.0, 0.0, 0.0}
 local RANGED_UNATTACKABLE	= {0.0, 1.0, 0.0, 0.0}
-local RANGED_ERROR			= {1.0, 1.0, 0.0, 0.3}
+local RANGED_HIDDEN			= {0.0, 0.0, 0.0, 0.0}
+local PET_HAPPINESS			= {"Unhappy >:(", "Content :)", "Happy :D"}
 local SPELL_AUTO_SHOT		= "Auto Shot"
-local AUTO_SHOT_TIP			= {Left1=SPELL_AUTO_SHOT}--, Left4="Requires Ranged Weapon"}
+local AUTO_SHOT_TIP			= {Left1=SPELL_AUTO_SHOT}--, Left4="Requires Ranged Weapon"} -- allows macros to be used on action bar
 local STR_ADDON_NAME		= "HunterHelper"
 local HH_AUTO_ACTIVATE		= "ACTIVATE"
 local HH_AUTO_STOP			= "STOP"
 local HH_AUTO_IGNORE		= "IGNORE"
 local HH_UPDATE_INTERVAL	= 0.05
-local nextCheck = GetTime()
-local autoShotSlot = nil
+local HH_PETCHECK_INTERVAL	= 1.0
+local nextRangeCheck 		= GetTime()
+local nextPetCheck 			= GetTime()
+local petHappiness			= 3 -- initialize to happy
+local autoShotSlot 			= nil
 local ttscan = CreateFrame("GameTooltip", "ttscan_", nil, "GameTooltipTemplate")
 local BLIZZ_CastSpellByName = CastSpellByName
 local BLIZZ_CastSpell = CastSpell
@@ -128,6 +132,73 @@ local function FindToolTipText(toolTip, text)
 	return nil
 end
 
+ftoast = CreateFrame("Frame", nil, WorldFrame)
+ftoast:SetBackdrop({bgFile = "Interface/ChatFrame/ChatFrameBackground"})
+ftoast:SetBackdropColor(0,0,0,1.0)
+ftoast.title = ftoast:CreateFontString("FontString")
+ftoast.title:SetFont("Fonts\\ARIALN.TTF", 12, "BOLD")
+ftoast.title:SetPoint("TOPLEFT", ftoast, "TOPLEFT", 2, -2)
+ftoast.title:SetPoint("BOTTOMRIGHT", ftoast, "TOPRIGHT", -2, -8)
+ftoast.title:SetJustifyV("TOP")
+ftoast.title:SetJustifyH("LEFT")
+ftoast.title:SetText("ALERT!")
+ftoast.msg = ftoast:CreateFontString("FontString")
+ftoast.msg:SetFont("Fonts\\ARIALN.TTF", 8, "NORMAL")
+ftoast.msg:SetPoint("TOPLEFT", ftoast.title, "BOTTOMLEFT", 0, 0)
+ftoast.msg:SetPoint("BOTTOMRIGHT", ftoast, -2, -2)
+ftoast.msg:SetJustifyH("LEFT")
+ftoast:SetWidth(ftoast:GetParent():GetWidth()*0.2)
+ftoast:SetHeight(ftoast:GetParent():GetHeight()*0.05)
+ftoast:SetPoint("BOTTOMRIGHT", ftoast:GetParent(),"BOTTOMRIGHT", -ftoast:GetParent():GetWidth()*0.01, ftoast:GetHeight()*0.5)
+ftoast:SetFrameStrata("DIALOG")
+ftoast:EnableMouse(true)
+ftoast.nextBlinkUpdate = nil
+ftoast.fblink = CreateFrame("Frame", nil, ftoast)
+ftoast.fblink:SetBackdrop({bgFile = "Interface/ChatFrame/ChatFrameBackground"})
+ftoast.fblink:SetBackdropColor(0,0,0,0)
+ftoast.fblink:SetAllPoints(ftoast.fblink:GetParent())
+ftoast:Hide()
+
+ftoast:SetScript("OnUpdate",function()	
+	if this.nextBlinkUpdate ~= nil and GetTime() >= this.nextBlinkUpdate then
+		if this.fblink:GetBackdropColor() == 0 then
+			this.fblink:SetBackdropColor(1,1,0,0.2)
+		else
+			this.fblink:SetBackdropColor(0,0,0,0)
+		end
+		this.nextBlinkUpdate = GetTime() + 0.5
+	end
+
+	if this.nextSoundAlert ~= nil and GetTime() >= ftoast.nextSoundAlert then
+		PlaySoundFile("Interface\\AddOns\\HunterHelper\\sounds\\boing1.mp3")
+		ftoast.nextBlinkUpdate = GetTime()
+		ftoast.nextSoundAlert = GetTime() + 10
+	end
+end)
+ftoast:SetScript("OnMouseUp", function()
+	this:Hide()
+end)
+ftoast:SetScript("OnEnter", function()
+	this.nextBlinkUpdate = nil
+	this.fblink:SetBackdropColor(0,0,0,0)
+end)
+ftoast:SetScript("OnLeave", function()
+end)
+
+function ShowToast(title, text)
+	if title ~= nil and text ~= nil then		
+		ftoast.title:SetText(title)
+		ftoast.msg:SetText(text.."\n|cFF00FF00click to close|r")	
+		ftoast.nextBlinkUpdate = GetTime()
+		ftoast.nextSoundAlert = GetTime()
+		ftoast:Show()
+	end
+end
+local HH_ERROR_AUTO_SHOT = "HunterHelper could not locate Auto Shot on your action bar. Drag Auto Shot from your spellbook into an open action bar slot, or a macro named Auto Shot."
+-- "HunterHelper could not locate Auto Shot on your action bar. Drag Auto Shot from your spellbook into an open action bar slot, or a macro named Auto Shot.\n|cFF00FF00click to close|r"
+--ShowToast("Alert!" , HH_ERROR_AUTO_SHOT)
+
+
 
 local fhh = CreateFrame("Frame", nil, WorldFrame)
 fhh:SetBackdrop({bgFile = "Interface/ChatFrame/ChatFrameBackground"})
@@ -139,7 +210,7 @@ fhh:SetPoint("CENTER",0,0)
 for _,evt in pairs({"ADDON_LOADED","SPELLS_CHANGED","ACTIONBAR_SLOT_CHANGED","PLAYER_ENTERING_WORLD"}) do
 	fhh:RegisterEvent(evt)
 end
-fhh:Show()
+fhh:Hide()
 
 local function cfout(text)
 	_G["ChatFrame1"]:AddMessage( "|cFF00FF00[ash]|r "..tostring(text) )
@@ -209,7 +280,8 @@ local function CheckAutoShotInRange()
 	if CheckActionSlot(ttscan, autoShotSlot, AUTO_SHOT_TIP) == false then
 		autoShotSlot = nil
 		debug("Auto Shot couldn't be found in action bar(s)")	
-		fhh:SetBackdropColor(unpack(RANGED_ERROR))
+		ShowToast("Alert!" , HH_ERROR_AUTO_SHOT)
+		fhh:SetBackdropColor(unpack(RANGED_HIDDEN))
 		return
 	end
 	
@@ -226,6 +298,16 @@ local function CheckAutoShotInRange()
 		
 end
 
+local function CheckPet()
+	if GetUnitName("pet") ~= nil and GetPetHappiness() ~= nil then
+		local oldHappiness = petHappiness
+		petHappiness = GetPetHappiness()
+		if petHappiness < oldHappiness then
+			ShowToast("Pet Happiness!","Your pet is now "..tostring(PET_HAPPINESS[petHappiness]))
+		end
+	end
+end
+
 local function ScanForAutoShot()		
 	debug("Scanning for Auto Shot action button ... ")
 	ttscan:SetOwner(UIParent,"ANCHOR_NONE")
@@ -239,7 +321,8 @@ local function ScanForAutoShot()
 	end
 	
 	debug("Unable to locate auto shot, will try again on next ACTIONBAR_SLOT_CHANGED")
-	fhh:SetBackdropColor(unpack(RANGED_ERROR))	
+	ShowToast("Alert!" , HH_ERROR_AUTO_SHOT)
+	fhh:SetBackdropColor(unpack(RANGED_HIDDEN))	
 end
 
 --[[
@@ -392,6 +475,7 @@ fhh:SetScript("OnEvent", function()
 		-- initial spell book scan and auto shot action location
 		ScanHunterSpells()
 		ScanForAutoShot()
+		fhh:Show()
 	elseif event == "ACTIONBAR_SLOT_CHANGED" then
 		-- whenever the action bar changes, scan it for auto shot
 		ScanForAutoShot()
@@ -403,9 +487,17 @@ end)
 
 fhh:SetScript("OnUpdate", function()
 	if autoShotSlot ~= nil then		
-		CheckAutoShotInRange()
-		nextCheck = GetTime() + HH_UPDATE_INTERVAL -- a pause before we check range again
+		if GetTime() >= nextRangeCheck then
+			CheckAutoShotInRange()
+			nextRangeCheck = GetTime() + HH_UPDATE_INTERVAL -- a pause before we check range again
+		end
 	end
+
+	if GetTime() >= nextPetCheck then
+		CheckPet()
+		nextPetCheck = GetTime() + HH_PETCHECK_INTERVAL -- a pause
+	end
+
 end)
 
 GameTooltip.overSpell = nil
@@ -481,7 +573,7 @@ SlashCmdList["HUNTERHELPER_SLASH"] = function(input)
 		|cFF00FF00/hh resetspells||rs|r
 		Reset all spell configurations to default. All ranged spells will have Auto Shot enforce enabled, except Scatter Shot.		
 		|cFF00FF00/hh alpha [in|out|err] <alpha value 0.0 to 1.0>|r
-		Set the alpha of the in-range, out-of-range, or error pane. if pane isn't specified, will set for all panes.
+		Set the alpha of the in-range, or out-of-range pane. if pane isn't specified, will set for all panes.
 		]])
 	elseif input == "resetspells" or input == "rs" then
 		if HunterHelperDB == nil then
@@ -499,8 +591,7 @@ SlashCmdList["HUNTERHELPER_SLASH"] = function(input)
 		if alphaValue == nil then
 			pane = params[2]
 			alphaValue = tonumber(params[3])			
-		end
-				
+		end				
 		
 		if  pane == "all" or pane == "out" then
 			RANGED_OUTOFRANGE[4] = alphaValue
@@ -508,10 +599,7 @@ SlashCmdList["HUNTERHELPER_SLASH"] = function(input)
 		if  pane == "all" or pane == "in" then
 			RANGED_INRANGE[4] = alphaValue
 		end
-		if  pane == "all" or pane == "err" then
-			RANGED_ERROR[4] = alphaValue
-		end
-		
+				
 	else
 		local spellName = params[2]
 		if spellName == nil then
