@@ -168,6 +168,12 @@ ftoast:SetScript("OnUpdate",function()
 		end
 		this.nextBlinkUpdate = GetTime() + 0.5
 	end
+
+	if this.nextSoundAlert ~= nil and GetTime() >= ftoast.nextSoundAlert then
+		PlaySoundFile("Interface\\AddOns\\HunterHelper\\sounds\\boing1.mp3")
+		ftoast.nextBlinkUpdate = GetTime()
+		ftoast.nextSoundAlert = GetTime() + 10
+	end
 end)
 ftoast:SetScript("OnMouseUp", function()
 	this:Hide()
@@ -180,11 +186,11 @@ ftoast:SetScript("OnLeave", function()
 end)
 
 function ShowToast(title, text)
-	if title ~= nil and text ~= nil then
-		PlaySoundFile("Interface\\AddOns\\HunterHelper\\sounds\\boing1.mp3")
+	if title ~= nil and text ~= nil then		
 		ftoast.title:SetText(title)
 		ftoast.msg:SetText(text.."\n|cFF00FF00click to close|r")	
 		ftoast.nextBlinkUpdate = GetTime()
+		ftoast.nextSoundAlert = GetTime()
 		ftoast:Show()
 	end
 end
