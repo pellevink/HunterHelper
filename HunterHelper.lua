@@ -233,7 +233,7 @@ fammo:SetScript("OnEvent", function()
 			this:ClearAllPoints()
 			this:SetPoint(unpack(ammoframePos))
 		end
-		ShowToast("HunterHelper", "Addon Loaded")
+		ShowToast("HunterHelper", "Addon Loaded. Access menu with "..HH_SLASH_COMMAND)
 	end
 
 	if event == "UNIT_INVENTORY_CHANGED" or event == "PLAYER_ENTERING_WORLD" then
@@ -514,7 +514,6 @@ fhh:SetScript("OnEvent", function()
 				pos = {"CENTER", 0, 0}
 			}
 		end
-		print("Loaded Hunter Helper")
 	elseif event == "PLAYER_ENTERING_WORLD" then
 		-- initial spell book scan and auto shot action location
 		ScanHunterSpells()
