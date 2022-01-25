@@ -466,8 +466,10 @@ end)
 
 fhh:SetScript("OnUpdate", function()
 	if autoShotSlot ~= nil then		
-		CheckAutoShotInRange()
-		nextCheck = GetTime() + HH_UPDATE_INTERVAL -- a pause before we check range again
+		if GetTime() >= nextCheck then
+			CheckAutoShotInRange()
+			nextCheck = GetTime() + HH_UPDATE_INTERVAL -- a pause before we check range again
+		end
 	end
 end)
 
