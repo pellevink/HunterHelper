@@ -1,4 +1,5 @@
 local _G = getfenv(0)
+local HH_SLASH_COMMAND		= "/huh"
 local RANGED_OUTOFRANGE 	= {1.0, 0.0, 0.0, 0.3}
 local RANGED_INRANGE		= {0.0, 1.0, 0.0, 0.0}
 local RANGED_UNATTACKABLE	= {0.0, 1.0, 0.0, 0.0}
@@ -647,7 +648,7 @@ GameTooltip:SetScript("OnHide", function(...)
 end)
 
 
-SLASH_HUNTERHELPER_SLASH1 = "/hh"
+SLASH_HUNTERHELPER_SLASH1 = HH_SLASH_COMMAND
 SlashCmdList["HUNTERHELPER_SLASH"] = function(input)	
 	local params = {}
 	for k in string.gfind(input, "%S+") do
@@ -661,19 +662,19 @@ SlashCmdList["HUNTERHELPER_SLASH"] = function(input)
 		In order to measure distance appropriately the Auto Shot spell must be dragged on to one of the player hotbars.
 		By default, ALL hunter spells that require ranged weapons will be enabled, |cFF00FF00EXCEPT Scatter Shot|r.
 		Any newly learned ranged spells will have the auto shot activation enabled.
-		|cFF00FF00/hh e[nable]||d[isable]||i[gnore] [Spell Name]|r
+		|cFF00FF00]]..HH_SLASH_COMMAND..[[ e[nable]||d[isable]||i[gnore] [Spell Name]|r
 		If specified with |cFF00FF00Spell Name|r, will enable/disable that spell from forcefully activating auto shot.
 		If not specified, the addon will enable/disable the current spell (in spellbook) or action (in action bar).
 		|cFF00FF00e[nable]|r When using this spell, forced auto shot will be attempted, regardless of mana status, etc.
 		|cFF00FF00d[isable]|r Spells flagged as disabled when used will cause the addon to force stopping of auto shot. 
 		|cFF00FF00i[gnore]|r Spells used will follow the normal game reaction.
-		|cFF00FF00/hh resetspells||rs|r
+		|cFF00FF00]]..HH_SLASH_COMMAND..[[ resetspells||rs|r
 		Reset all spell configurations to default. All ranged spells will have Auto Shot enforce enabled, except Scatter Shot.		
-		|cFF00FF00/hh resetframes||rf|r
+		|cFF00FF00]]..HH_SLASH_COMMAND..[[ resetframes||rf|r
 		Reset all frame configurations in case something disappeared.
-		|cFF00FF00/hh alpha [in|out|err] <alpha value 0.0 to 1.0>|r
+		|cFF00FF00]]..HH_SLASH_COMMAND..[[ alpha [in|out|err] <alpha value 0.0 to 1.0>|r
 		Set the alpha of the in-range, or out-of-range pane. if pane isn't specified, will set for all panes.
-		|cFF00FF00/hh unlock|lock|r
+		|cFF00FF00]]..HH_SLASH_COMMAND..[[ unlock|lock|r
 		Unlock or lock frames and make them draggable across the screen, or lock them in place
 		]])
 	elseif input == "resetframes" or input == "rf" then
