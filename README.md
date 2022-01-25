@@ -17,6 +17,9 @@ Whenever the player fires any ranged ability (e.g. Arcane Shot, Multi-Shot) the 
 ### Range Checker
 If the currently targetted enemy is inside minimum or outside maximum range for Auto Shot, a red pane will appear in the center of the screen. This feature requires Auto Shot to be dragged onto any Action Bar.
 
+### Ammo Counter
+A movable pane with the currently equipped ammo type and count is displayed on screen. It can be moved after unlocking it with /hh unlock. Lock it in place with /hh lock.
+
 ### Pet Happiness Alert
 When your currently active pet loses a happiness level (Happy->Content, Content->Angry) the addon will alert with a "toast pane" on screen.
 
@@ -33,10 +36,18 @@ d[isable] : Spells flagged as disabled when used will cause the addon to force s
 
 i[gnore] : Spells used will follow the normal game reaction.
 		
-/hh resetspells|rs|
+/hh resetspells|rs
 
 Reset all spell configurations to default. All ranged spells will have Auto Shot enforce enabled, except Scatter Shot.		
+
+/hh  resetframes|rf
+
+Reset all frame configurations in case something gets lost
 
 /hh alpha [in|out|err] <alpha value 0.0 to 1.0>
 
 Set the alpha of the in-range, or out-of-range pane. if pane isn't specified, will set for all panes.
+
+/hh unlock | lock
+
+Unlock or lock frames for repositioning on the screen.

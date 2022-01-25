@@ -10,18 +10,56 @@ local STR_ADDON_NAME		= "HunterHelper"
 local HH_AUTO_ACTIVATE		= "ACTIVATE"
 local HH_AUTO_STOP			= "STOP"
 local HH_AUTO_IGNORE		= "IGNORE"
+local INVENTORY_SLOT_AMMO	= 0
 local HH_UPDATE_INTERVAL	= 0.05
 local HH_PETCHECK_INTERVAL	= 1.0
 local nextRangeCheck 		= GetTime()
 local nextPetCheck 			= GetTime()
 local petHappiness			= 3 -- initialize to happy
 local autoShotSlot 			= nil
-local ttscan = CreateFrame("GameTooltip", "ttscan_", nil, "GameTooltipTemplate")
+local ttscan 				= CreateFrame("GameTooltip", "ttscan_", nil, "GameTooltipTemplate")
 local BLIZZ_CastSpellByName = CastSpellByName
-local BLIZZ_CastSpell = CastSpell
-local BLIZZ_UseAction = UseAction
-local debugEnabled = false
+local BLIZZ_CastSpell		= CastSpell
+local BLIZZ_UseAction		= UseAction
+local debugEnabled 			= false
 
+local function SetDBVar(value, ...)
+	if arg.n == 0 then
+		return
+	end
+
+	if HunterHelperDB == nil then
+		HunterHelperDB = {}
+	end
+
+	-- store and remove the last element in the chain
+	local last = arg[arg.n]
+	table.remove(arg, arg.n)
+	local ptr = HunterHelperDB
+	for _,var in ipairs(arg) do
+		if ptr[var] == nil then
+			ptr[var] = {}
+		end
+		ptr = ptr[var]
+	end
+	ptr[last] = value
+end
+
+local function GetDBVar(...)
+	-- obtain a variable from the database without failing
+	if HunterHelperDB == nil then
+		return nil
+	end
+
+	local ptr = HunterHelperDB
+	for _,var in ipairs(arg) do
+		if ptr[var] == nil then
+			return nil
+		end
+		ptr = ptr[var]
+	end
+	return ptr
+end
 
 local function TableToStr(tbl)
 	local tabitems = {}				
@@ -199,6 +237,59 @@ local HH_ERROR_AUTO_SHOT = "HunterHelper could not locate Auto Shot on your acti
 --ShowToast("Alert!" , HH_ERROR_AUTO_SHOT)
 
 
+local fammo = CreateFrame("Frame", nil, WorldFrame)
+fammo.strType = fammo:CreateFontString("FontString")
+fammo.strType:SetFont("Interface\\Addons\\HunterHelper\\fonts\\KozmikVibez.ttf", 10, "OUTLINE")
+fammo.strType:SetPoint("CENTER",0,12)
+fammo.strType:SetAlpha(0.7)
+fammo.strType:SetText("Ammunition Type Name")
+fammo.strCount = fammo:CreateFontString("FontString")
+fammo.strCount:SetFont("Interface\\Addons\\HunterHelper\\fonts\\KozmikVibez.ttf", 22, "OUTLINE")
+fammo.strCount:SetPoint("CENTER",0,0)
+fammo.strCount:SetText("0000")
+fammo.strCount:SetAlpha(0.7)
+fammo:SetBackdrop({bgFile = "Interface/ChatFrame/ChatFrameBackground"})
+fammo:SetBackdropColor(0,0,0,0)
+fammo:SetWidth(100)
+fammo:SetHeight(100)
+fammo:SetFrameStrata("DIALOG")
+fammo:SetPoint("CENTER", 0, 0)
+fammo:RegisterEvent("UNIT_INVENTORY_CHANGED")
+fammo:RegisterEvent("PLAYER_ENTERING_WORLD")
+fammo:RegisterForDrag("LeftButton")
+fammo:SetMovable()
+fammo:Show()
+
+fammo:SetScript("OnDragStart",function()	
+	this:StartMoving()
+end)
+fammo:SetScript("OnDragStop",function()
+	this:StopMovingOrSizing()
+end)
+
+fammo:SetScript("OnEvent", function()
+	if event == "PLAYER_ENTERING_WORLD" then
+		local ammoframePos = GetDBVar("AmmoFrame","pos")
+		if ammoframePos ~= nil then
+			this:ClearAllPoints()
+			this:SetPoint(unpack(ammoframePos))
+		end
+	end
+
+	if event == "UNIT_INVENTORY_CHANGED" or event == "PLAYER_ENTERING_WORLD" then
+		ttscan:SetOwner(UIParent,"ANCHOR_NONE")
+		ttscan:SetInventoryItem("player",0)
+		local ammoName = GetToolTipText(ttscan,"Left1")
+		local ammoCount = "----"
+		if ammoName == nil then
+			ammoName = "No Ammo Equipped"
+		else			
+			ammoCount = GetInventoryItemCount("player", INVENTORY_SLOT_AMMO) or "0"			
+		end
+		fammo.strType:SetText(ammoName)
+		fammo.strCount:SetText(ammoCount)
+	end
+end)
 
 local fhh = CreateFrame("Frame", nil, WorldFrame)
 fhh:SetBackdrop({bgFile = "Interface/ChatFrame/ChatFrameBackground"})
@@ -208,7 +299,7 @@ fhh:SetHeight(fhh:GetParent():GetHeight()/2)
 fhh:SetFrameStrata("DIALOG")
 fhh:SetPoint("CENTER",0,0)
 for _,evt in pairs({"ADDON_LOADED","SPELLS_CHANGED","ACTIONBAR_SLOT_CHANGED","PLAYER_ENTERING_WORLD"}) do
-	fhh:RegisterEvent(evt)
+	fhh:RegisterEvent(evt)	
 end
 fhh:Hide()
 
@@ -469,7 +560,13 @@ fhh:SetScript("OnEvent", function()
 			HunterHelperDB.EnabledSpells = {
 				["Scatter Shot"] = HH_AUTO_IGNORE -- flag as explicitly ignored
 			}
-		end		
+		end
+
+		if HunterHelperDB.AmmoFrame == nil then
+			HunterHelperDB.AmmoFrame = {
+				pos = {"CENTER", 0, 0}
+			}
+		end
 		print("Loaded Hunter Helper")
 	elseif event == "PLAYER_ENTERING_WORLD" then
 		-- initial spell book scan and auto shot action location
@@ -572,18 +669,30 @@ SlashCmdList["HUNTERHELPER_SLASH"] = function(input)
 		|cFF00FF00i[gnore]|r Spells used will follow the normal game reaction.
 		|cFF00FF00/hh resetspells||rs|r
 		Reset all spell configurations to default. All ranged spells will have Auto Shot enforce enabled, except Scatter Shot.		
+		|cFF00FF00/hh resetframes||rf|r
+		Reset all frame configurations in case something disappeared.
 		|cFF00FF00/hh alpha [in|out|err] <alpha value 0.0 to 1.0>|r
 		Set the alpha of the in-range, or out-of-range pane. if pane isn't specified, will set for all panes.
+		|cFF00FF00/hh unlock|lock|r
+		Unlock or lock frames and make them draggable across the screen, or lock them in place
 		]])
+	elseif input == "resetframes" or input == "rf" then
+		SetDBVar({"CENTER",0,0}, "AmmoFrame", "pos")
+		fammo:ClearAllPoints()
+		fammo:SetPoint("CENTER",0,0)
 	elseif input == "resetspells" or input == "rs" then
-		if HunterHelperDB == nil then
-			HunterHelperDB = {}
-		end
 		-- force reset the enabled spells, then rescan all spells
-		HunterHelperDB.EnabledSpells = {
-			["Scatter Shot"] = HH_AUTO_IGNORE
-		}
+		SetDBVar({["Scatter Shot"] = HH_AUTO_IGNORE}, "EnabledSpells")
 		ScanHunterSpells()
+		print("Reset all spell settings to default")
+	elseif input == "unlock" then
+		fammo:SetBackdropColor(0,0,0,0.5)
+		fammo:EnableMouse(true)
+	elseif input == "lock" then
+		fammo:SetBackdropColor(0,0,0,0.0)
+		fammo:EnableMouse(false)
+		local _,_,anchor,xpos,ypos = fammo:GetPoint("CENTER")
+		SetDBVar({anchor,xpos,ypos}, "AmmoFrame", "pos")
 	elseif params[1] == "alpha"	then
 		
 		local alphaValue = tonumber(params[2])
