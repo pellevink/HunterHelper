@@ -3,6 +3,7 @@ local RANGED_OUTOFRANGE 	= {1.0, 0.0, 0.0, 0.3}
 local RANGED_INRANGE		= {0.0, 1.0, 0.0, 0.0}
 local RANGED_UNATTACKABLE	= {0.0, 1.0, 0.0, 0.0}
 local RANGED_HIDDEN			= {0.0, 0.0, 0.0, 0.0}
+local PET_HAPPINESS			= {"Unhappy", "Content", "Happy"}
 local SPELL_AUTO_SHOT		= "Auto Shot"
 local AUTO_SHOT_TIP			= {Left1=SPELL_AUTO_SHOT}--, Left4="Requires Ranged Weapon"} -- allows macros to be used on action bar
 local STR_ADDON_NAME		= "HunterHelper"
@@ -10,8 +11,11 @@ local HH_AUTO_ACTIVATE		= "ACTIVATE"
 local HH_AUTO_STOP			= "STOP"
 local HH_AUTO_IGNORE		= "IGNORE"
 local HH_UPDATE_INTERVAL	= 0.05
-local nextRangeCheck = GetTime()
-local autoShotSlot = nil
+local HH_PETCHECK_INTERVAL	= 1.0
+local nextRangeCheck 		= GetTime()
+local nextPetCheck 			= GetTime()
+local petHappiness			= 10
+local autoShotSlot 			= nil
 local ttscan = CreateFrame("GameTooltip", "ttscan_", nil, "GameTooltipTemplate")
 local BLIZZ_CastSpellByName = CastSpellByName
 local BLIZZ_CastSpell = CastSpell
@@ -288,6 +292,14 @@ local function CheckAutoShotInRange()
 		
 end
 
+local function CheckPet()
+	local curHappy = GetPetHappiness()
+	if curHappy < petHappiness then
+		petHappiness = curHappy
+		ShowToast("Pet Happiness!","Your pet is currently "..tostring(PET_HAPPINESS[petHappiness]))
+	end
+end
+
 local function ScanForAutoShot()		
 	debug("Scanning for Auto Shot action button ... ")
 	ttscan:SetOwner(UIParent,"ANCHOR_NONE")
@@ -471,6 +483,12 @@ fhh:SetScript("OnUpdate", function()
 			nextRangeCheck = GetTime() + HH_UPDATE_INTERVAL -- a pause before we check range again
 		end
 	end
+
+	if GetTime() >= nextPetCheck then
+		CheckPet()
+		nextPetCheck = GetTime() + HH_PETCHECK_INTERVAL -- a pause
+	end
+
 end)
 
 GameTooltip.overSpell = nil
