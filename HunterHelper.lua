@@ -22,7 +22,20 @@ local ttscan 				= CreateFrame("GameTooltip", "ttscan_", nil, "GameTooltipTempla
 local BLIZZ_CastSpellByName = CastSpellByName
 local BLIZZ_CastSpell		= CastSpell
 local BLIZZ_UseAction		= UseAction
+local HH_ERROR_AUTO_SHOT 	= "HunterHelper could not locate Auto Shot on your action bar. Drag Auto Shot from your spellbook into an open action bar slot, or a macro named Auto Shot."
 local debugEnabled 			= false
+
+local function debug(...)
+	-- local helper function to print to system console OR the global ScriptEditor addon ScriptEditor:Log function
+	if debugEnabled == false then return end
+	
+	if ScriptEditor ~= nil then
+		ScriptEditor:Log(unpack(arg))
+	else
+		local text = ArgsToStr(unpack(arg))
+		cfout(text)
+	end
+end
 
 local function SetDBVar(value, ...)
 	if arg.n == 0 then
@@ -171,72 +184,17 @@ local function FindToolTipText(toolTip, text)
 	return nil
 end
 
-ftoast = CreateFrame("Frame", nil, WorldFrame)
-ftoast:SetBackdrop({bgFile = "Interface/ChatFrame/ChatFrameBackground"})
-ftoast:SetBackdropColor(0,0,0,1.0)
-ftoast.title = ftoast:CreateFontString("FontString")
-ftoast.title:SetFont("Fonts\\ARIALN.TTF", 12, "BOLD")
-ftoast.title:SetPoint("TOPLEFT", ftoast, "TOPLEFT", 2, -2)
-ftoast.title:SetPoint("BOTTOMRIGHT", ftoast, "TOPRIGHT", -2, -8)
-ftoast.title:SetJustifyV("TOP")
-ftoast.title:SetJustifyH("LEFT")
-ftoast.title:SetText("ALERT!")
-ftoast.msg = ftoast:CreateFontString("FontString")
-ftoast.msg:SetFont("Fonts\\ARIALN.TTF", 8, "NORMAL")
-ftoast.msg:SetPoint("TOPLEFT", ftoast.title, "BOTTOMLEFT", 0, 0)
-ftoast.msg:SetPoint("BOTTOMRIGHT", ftoast, -2, -2)
-ftoast.msg:SetJustifyH("LEFT")
-ftoast:SetWidth(ftoast:GetParent():GetWidth()*0.2)
-ftoast:SetHeight(ftoast:GetParent():GetHeight()*0.05)
-ftoast:SetPoint("BOTTOMRIGHT", ftoast:GetParent(),"BOTTOMRIGHT", -ftoast:GetParent():GetWidth()*0.01, ftoast:GetHeight()*0.5)
-ftoast:SetFrameStrata("DIALOG")
-ftoast:EnableMouse(true)
-ftoast.nextBlinkUpdate = nil
-ftoast.fblink = CreateFrame("Frame", nil, ftoast)
-ftoast.fblink:SetBackdrop({bgFile = "Interface/ChatFrame/ChatFrameBackground"})
-ftoast.fblink:SetBackdropColor(0,0,0,0)
-ftoast.fblink:SetAllPoints(ftoast.fblink:GetParent())
-ftoast:Hide()
 
-ftoast:SetScript("OnUpdate",function()	
-	if this.nextBlinkUpdate ~= nil and GetTime() >= this.nextBlinkUpdate then
-		if this.fblink:GetBackdropColor() == 0 then
-			this.fblink:SetBackdropColor(1,1,0,0.2)
-		else
-			this.fblink:SetBackdropColor(0,0,0,0)
-		end
-		this.nextBlinkUpdate = GetTime() + 0.5
-	end
-
-	if this.nextSoundAlert ~= nil and GetTime() >= ftoast.nextSoundAlert then
-		PlaySoundFile("Interface\\AddOns\\HunterHelper\\sounds\\boing1.mp3")
-		ftoast.nextBlinkUpdate = GetTime()
-		ftoast.nextSoundAlert = GetTime() + 10
-	end
-end)
-ftoast:SetScript("OnMouseUp", function()
-	this:Hide()
-end)
-ftoast:SetScript("OnEnter", function()
-	this.nextBlinkUpdate = nil
-	this.fblink:SetBackdropColor(0,0,0,0)
-end)
-ftoast:SetScript("OnLeave", function()
-end)
-
-function ShowToast(title, text)
-	if title ~= nil and text ~= nil then		
-		ftoast.title:SetText(title)
-		ftoast.msg:SetText(text.."\n|cFF00FF00click to close|r")	
-		ftoast.nextBlinkUpdate = GetTime()
-		ftoast.nextSoundAlert = GetTime()
-		ftoast:Show()
-	end
+local function ShowToast(title, text)
+	-- if the toastmaster was loaded in, we use it. if not, just dump the text to chat frame
+	if ToastMaster ~= nil then
+		ToastMaster:AddToast(title, text)
+	else 
+		print(title..": "..text)
+	end	
 end
-local HH_ERROR_AUTO_SHOT = "HunterHelper could not locate Auto Shot on your action bar. Drag Auto Shot from your spellbook into an open action bar slot, or a macro named Auto Shot."
--- "HunterHelper could not locate Auto Shot on your action bar. Drag Auto Shot from your spellbook into an open action bar slot, or a macro named Auto Shot.\n|cFF00FF00click to close|r"
---ShowToast("Alert!" , HH_ERROR_AUTO_SHOT)
 
+-- "HunterHelper could not locate Auto Shot on your action bar. Drag Auto Shot from your spellbook into an open action bar slot, or a macro named Auto Shot.\n|cFF00FF00click to close|r"
 
 local fammo = CreateFrame("Frame", nil, WorldFrame)
 fammo.strType = fammo:CreateFontString("FontString")
@@ -275,6 +233,7 @@ fammo:SetScript("OnEvent", function()
 			this:ClearAllPoints()
 			this:SetPoint(unpack(ammoframePos))
 		end
+		ShowToast("HunterHelper", "Addon Loaded")
 	end
 
 	if event == "UNIT_INVENTORY_CHANGED" or event == "PLAYER_ENTERING_WORLD" then
@@ -309,18 +268,6 @@ local function cfout(text)
 end
 
 
-
-local function debug(...)
-	-- local helper function to print to system console OR the global ScriptEditor addon ScriptEditor:Log function
-	if debugEnabled == false then return end
-	
-	if ScriptEditor ~= nil then
-		ScriptEditor:Log(unpack(arg))
-	else
-		local text = ArgsToStr(unpack(arg))
-		cfout(text)
-	end
-end
 
 
 local function VerifyToolTip(toolTip, verify)
@@ -408,12 +355,11 @@ local function ScanForAutoShot()
 		if CheckActionSlot(ttscan, slotId, AUTO_SHOT_TIP) ~= false then
 			debug("Located autoshot in slot "..slotId)
 			autoShotSlot = slotId			
-			return
+			return true
 		end
 	end
 	
 	debug("Unable to locate auto shot, will try again on next ACTIONBAR_SLOT_CHANGED")
-	ShowToast("Alert!" , HH_ERROR_AUTO_SHOT)
 	fhh:SetBackdropColor(unpack(RANGED_HIDDEN))	
 end
 
@@ -572,7 +518,9 @@ fhh:SetScript("OnEvent", function()
 	elseif event == "PLAYER_ENTERING_WORLD" then
 		-- initial spell book scan and auto shot action location
 		ScanHunterSpells()
-		ScanForAutoShot()
+		if ScanForAutoShot() ~= true then
+			ShowToast("Can't Find Auto Shot", HH_ERROR_AUTO_SHOT)
+		end
 		fhh:Show()
 	elseif event == "ACTIONBAR_SLOT_CHANGED" then
 		-- whenever the action bar changes, scan it for auto shot
@@ -689,11 +637,17 @@ SlashCmdList["HUNTERHELPER_SLASH"] = function(input)
 	elseif input == "unlock" then
 		fammo:SetBackdropColor(0,0,0,0.5)
 		fammo:EnableMouse(true)
+		if ToastMaster ~= nil then
+			ToastMaster:UnlockFrame()
+		end
 	elseif input == "lock" then
 		fammo:SetBackdropColor(0,0,0,0.0)
 		fammo:EnableMouse(false)
 		local _,_,anchor,xpos,ypos = fammo:GetPoint("CENTER")
 		SetDBVar({anchor,xpos,ypos}, "AmmoFrame", "pos")
+		if ToastMaster ~= nil then
+			ToastMaster:LockFrame()
+		end		
 	elseif params[1] == "alpha"	then
 		
 		local alphaValue = tonumber(params[2])
