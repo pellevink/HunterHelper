@@ -518,6 +518,11 @@ SlashCmdList["HUNTERHELPER_SLASH"] = function(input)
 		Set the alpha of the in-range, or out-of-range pane. if pane isn't specified, will set for all panes.
 		|cFF00FF00]]..HH_SLASH_COMMAND..[[ unlock|lock|r
 		Unlock or lock frames and make them draggable across the screen, or lock them in place
+		|cFF00FF00]]..HH_SLASH_COMMAND..[[ aspect <aspect> {<aspect>} {<mod> {<mod>} <aspect> {<aspect>}}
+		Implements an aspect-sequence macro. any list of aspects will be rotated through following the modifier key
+		combination presented. e.g.
+		|c0000ff00aspect beast hawk monkey|r will rotate through these aspects left-to-right, starting with beast. 
+		|c0000ff00aspect beast hawk alt monkey|r will rotate through beast,hawk aspects, but with alt pressed, will cast monkey.
 		]])
 	elseif params[1] == "aspect" and params[2] ~= nil then
 		-- aspect <aspect> {<aspect>} {'['<mod>']' <aspect> {<aspect>}
@@ -576,16 +581,27 @@ SlashCmdList["HUNTERHELPER_SLASH"] = function(input)
 
 		local keyState = (IsAltKeyDown() and "alt" or "")..(IsControlKeyDown() and "ctrl" or "")..(IsShiftKeyDown() and "shift" or "")
 		 
-		print(aspectMacro)		
-		print("keystate", tostring(keyState))
+		debug(aspectMacro)		
+		debug("keystate", tostring(keyState))
 
 		if aspectMacro[keyState] == nil then
 			print("WARNING: This macro has no state for "..keyState..", falling back on normal")
 			keyState = ""
 		end
 
-		-- identify which state the player is in
-		CastSpellByName("Aspect of the Hawk")
+		-- identify the player aspect state
+		-- if we have an aspect present in the sequence, we switch to the next (or roll over)
+		for i,aspect in ipairs(aspectMacro[keyState]) do
+			if fhh.currentBuffs[HUNTER_ASPECTS[aspect]] ~= nil then
+				-- we found an active buff in this sequence, cast the next one (or first)
+				local castAspect = aspectMacro[keyState][i+1] or aspectMacro[keyState][1]
+				CastSpellByName(HUNTER_ASPECTS[castAspect])
+				return
+			end
+		end
+
+		-- if we reach this point, the player did not have an aspect that of in the sequence, so we cast the first in the sequence
+		CastSpellByName(HUNTER_ASPECTS[aspectMacro[keyState][1]])
 
 	elseif input == "resetframes" or input == "rf" then
 		Utils.SetDBCharVar(HunterHelperDB, {pos={"CENTER",0,0}}, "AmmoFrame")
