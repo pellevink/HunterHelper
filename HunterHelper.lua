@@ -160,8 +160,7 @@ fammo:SetScript("OnEvent", function()
 		if ammoframePos ~= nil then
 			this:ClearAllPoints()
 			this:SetPoint(unpack(ammoframePos))
-		end
-		ShowToast("HunterHelper", "Addon Loaded. Access menu with "..HH_SLASH_COMMAND,{persistent=false})
+		end		
 	end
 
 	if event == "UNIT_INVENTORY_CHANGED" or event == "PLAYER_ENTERING_WORLD" then
@@ -446,7 +445,7 @@ fhh:SetScript("OnEvent", function()
 		if Utils.GetDBCharVar(HunterHelperDB, "AmmoFrame", "pos") == nil then
 			Utils.SetDBCharVar(HunterHelperDB, {pos={"CENTER",0,0}}, "AmmoFrame")
 		end
-
+		ShowToast("HunterHelper", "Addon Loaded. Access menu with "..HH_SLASH_COMMAND,{persistent=false})
 	elseif event == "PLAYER_ENTERING_WORLD" then
 		-- initial spell book scan and auto shot action location
 		ScanHunterSpells()
