@@ -6,4 +6,5 @@
 ## SavedVariables: HunterHelperDB
 ## OptionalDeps: ScriptEditor, ToastMaster
 ## Dependencies:
+Utils.lua
 HunterHelper.lua

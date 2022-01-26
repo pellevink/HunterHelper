@@ -33,96 +33,15 @@ local function debug(...)
 	if ScriptEditor ~= nil then
 		ScriptEditor:Log(unpack(arg))
 	else
-		local text = ArgsToStr(unpack(arg))
+		local text = Utils.ArgsToStr(unpack(arg))
 		cfout(text)
 	end
 end
 
-local function SetDBVar(db, value, ...)
-	if arg.n == 0 then
-		return
-	end
-
-	if db == nil then
-		db = {}
-	end
-
-	-- store and remove the last element in the chain
-	local last = arg[arg.n]
-	table.remove(arg, arg.n)
-	local ptr = db
-	for _,var in ipairs(arg) do
-		if ptr[var] == nil then
-			ptr[var] = {}
-		end
-		ptr = ptr[var]
-	end
-	ptr[last] = value
-end
-
-local function SetDBCharVar(db, value, ... )
-	return SetDBVar(db, value, "Characters", GetRealmName().."-"..UnitName("player"), unpack(arg))
-end
-
-local function GetDBVar(db, ...)
-	-- obtain a variable from the database without failing
-	if db == nil then
-		return nil
-	end
-
-	local ptr = db
-	for _,var in ipairs(arg) do
-		if ptr[var] == nil then
-			return nil
-		end
-		ptr = ptr[var]
-	end
-	return ptr
-end
-
-local function GetDBCharVar(db, ... )
-	return GetDBVar(db, "Characters", GetRealmName().."-"..UnitName("player"), unpack(arg))
-end
-
-local function TableToStr(tbl)
-	local tabitems = {}				
-	for key,val in pairs(tbl) do
-		if type(val) == "table" then
-			val = TableToStr(val)
-		else
-			val = tostring(val)
-		end
-		table.insert(tabitems, tostring(key).."="..val)
-	end
-	
-	return "{"..table.concat(tabitems,",").."}"
-end
-
-local function ArgsToStr(...)
-	-- convert a ... argument to a comma separated text list
-	local text = nil
-	if arg ~= nil then
-		local items = {}
-		local count = 0
-		for i,v in ipairs(arg) do			
-			if type(v) == "table" then
-				table.insert(items, TableToStr(v) )
-			else
-				-- anything else and we just force it to string
-				table.insert(items, tostring(v))
-			end
-			count = count + 1
-		end
-		if count > 0 then
-			text = table.concat(items," ")
-		end
-	end
-	return tostring(text)
-end
 
 local function print(...)
 	-- local helper function to print to system console
-	local text = ArgsToStr(unpack(arg))
+	local text = Utils.ArgsToStr(unpack(arg))
 	_G["ChatFrame1"]:AddMessage(text)
 end
 
@@ -237,7 +156,7 @@ end)
 
 fammo:SetScript("OnEvent", function()
 	if event == "PLAYER_ENTERING_WORLD" then
-		local ammoframePos = GetDBCharVar(HunterHelperDB, "AmmoFrame", "pos")
+		local ammoframePos = Utils.GetDBCharVar(HunterHelperDB, "AmmoFrame", "pos")
 		if ammoframePos ~= nil then
 			this:ClearAllPoints()
 			this:SetPoint(unpack(ammoframePos))
@@ -393,7 +312,7 @@ function Set(list)
 end
 
 local function EngageRegisteredSpell(spellName)
-	local enabledStatus = GetDBCharVar(HunterHelperDB, "EnabledSpells", spellName)
+	local enabledStatus = Utils.GetDBCharVar(HunterHelperDB, "EnabledSpells", spellName)
 	if spellName == SPELL_AUTO_SHOT or enabledStatus == HH_AUTO_ACTIVATE then
 		if autoShotSlot ~= nil then
 			if not IsAutoRepeatAction(autoShotSlot) then
@@ -486,7 +405,7 @@ local function ScanHunterSpells()
 			
 			spellName = GetSpellName(spellSlotNumber,"spell")
 			isSpellPassive = IsSpellPassive(spellSlotNumber,"spell")
-			local enabledStatus = GetDBCharVar(HunterHelperDB, "EnabledSpells", spellName)
+			local enabledStatus = Utils.GetDBCharVar(HunterHelperDB, "EnabledSpells", spellName)
 			debug("    ",{
 				spellSlotNumber=tostring(spellSlotNumber),
 				bookTabIndex=tostring(bookTabIndex),
@@ -498,7 +417,7 @@ local function ScanHunterSpells()
 			})
 			
 			if ranged == true and enabledStatus == nil then
-				SetDBCharVar(HunterHelperDB, HH_AUTO_ACTIVATE, "EnabledSpells", spellName)
+				Utils.SetDBCharVar(HunterHelperDB, HH_AUTO_ACTIVATE, "EnabledSpells", spellName)
 				debug("    ", "Added "..spellName.." to activate Auto Shot")
 			end
 			
@@ -515,17 +434,17 @@ fhh:SetScript("OnEvent", function()
 			HunterHelperDB = {version = HH_DB_VERSION}
 		end
 
-		playerVars = GetDBCharVar(HunterHelperDB)
+		playerVars = Utils.GetDBCharVar(HunterHelperDB)
 		if playerVars == nil then
-			SetDBCharVar(HunterHelperDB, {})
+			Utils.SetDBCharVar(HunterHelperDB, {})
 		end
 
-		if GetDBCharVar(HunterHelperDB, "EnabledSpells") == nil then
-			SetDBCharVar(HunterHelperDB, {["Scatter Shot"] = HH_AUTO_IGNORE}, "EnabledSpells")
+		if Utils.GetDBCharVar(HunterHelperDB, "EnabledSpells") == nil then
+			Utils.SetDBCharVar(HunterHelperDB, {["Scatter Shot"] = HH_AUTO_IGNORE}, "EnabledSpells")
 		end
 
-		if GetDBCharVar(HunterHelperDB, "AmmoFrame", "pos") == nil then
-			SetDBCharVar(HunterHelperDB, {pos={"CENTER",0,0}}, "AmmoFrame")
+		if Utils.GetDBCharVar(HunterHelperDB, "AmmoFrame", "pos") == nil then
+			Utils.SetDBCharVar(HunterHelperDB, {pos={"CENTER",0,0}}, "AmmoFrame")
 		end
 
 	elseif event == "PLAYER_ENTERING_WORLD" then
@@ -567,7 +486,7 @@ local function AddToolTipInfo()
 	local tipText = "IGNORED"
 	local tipColor = {1,1,1}
 	
-	local enabledStatus = GetDBCharVar(HunterHelperDB, "EnabledSpells", spellName)
+	local enabledStatus = Utils.GetDBCharVar(HunterHelperDB, "EnabledSpells", spellName)
 	if enabledStatus == HH_AUTO_ACTIVATE then
 		tipText = "ENABLED"
 		tipColor = {0,1,0}
@@ -641,12 +560,12 @@ SlashCmdList["HUNTERHELPER_SLASH"] = function(input)
 		Unlock or lock frames and make them draggable across the screen, or lock them in place
 		]])
 	elseif input == "resetframes" or input == "rf" then
-		SetDBCharVar(HunterHelperDB, {pos={"CENTER",0,0}}, "AmmoFrame")
+		Utils.SetDBCharVar(HunterHelperDB, {pos={"CENTER",0,0}}, "AmmoFrame")
 		fammo:ClearAllPoints()
 		fammo:SetPoint("CENTER",0,0)
 	elseif input == "resetspells" or input == "rs" then
 		-- force reset the enabled spells, then rescan all spells
-		SetDBCharVar(HunterHelperDB, {["Scatter Shot"] = HH_AUTO_IGNORE}, "EnabledSpells")
+		Utils.SetDBCharVar(HunterHelperDB, {["Scatter Shot"] = HH_AUTO_IGNORE}, "EnabledSpells")
 		ScanHunterSpells()
 		print("Reset all spell settings to default")
 	elseif input == "unlock" then
@@ -659,7 +578,7 @@ SlashCmdList["HUNTERHELPER_SLASH"] = function(input)
 		fammo:SetBackdropColor(0,0,0,0.0)
 		fammo:EnableMouse(false)
 		local _,_,anchor,xpos,ypos = fammo:GetPoint("CENTER")
-		SetDBCharVar(HunterHelperDB,  {anchor,xpos,ypos}, "AmmoFrame", "pos")
+		Utils.SetDBCharVar(HunterHelperDB,  {anchor,xpos,ypos}, "AmmoFrame", "pos")
 		if ToastMaster ~= nil then
 			ToastMaster:LockFrame()
 		end		
@@ -702,7 +621,7 @@ SlashCmdList["HUNTERHELPER_SLASH"] = function(input)
 			return
 		end
 
-		SetDBCharVar(HunterHelperDB, enabledStatus, "EnabledSpells", spellName)
+		Utils.SetDBCharVar(HunterHelperDB, enabledStatus, "EnabledSpells", spellName)
 		
 		if enabledStatus == HH_AUTO_ACTIVATE then
 			print("Casting "..spellName.." will now attempt to engage Auto Shot ")
