@@ -113,10 +113,10 @@ local function FindToolTipText(toolTip, text)
 end
 
 
-local function ShowToast(title, text)
+local function ShowToast(title, text, settings)
 	-- if the toastmaster was loaded in, we use it. if not, just dump the text to chat frame
 	if ToastMaster ~= nil then
-		ToastMaster:AddToast(title, text)
+		ToastMaster:AddToast(title, text, settings)
 	else 
 		print(title..": "..text)
 	end	
@@ -161,7 +161,7 @@ fammo:SetScript("OnEvent", function()
 			this:ClearAllPoints()
 			this:SetPoint(unpack(ammoframePos))
 		end
-		ShowToast("HunterHelper", "Addon Loaded. Access menu with "..HH_SLASH_COMMAND)
+		ShowToast("HunterHelper", "Addon Loaded. Access menu with "..HH_SLASH_COMMAND,{persistent=false})
 	end
 
 	if event == "UNIT_INVENTORY_CHANGED" or event == "PLAYER_ENTERING_WORLD" then
