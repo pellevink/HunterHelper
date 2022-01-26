@@ -263,8 +263,8 @@ function CheckAspectCast(spellName)
 	if HUNTER_ASPECT_SPELLS[spellName] == nil then
 		return true -- this is not an aspect
 	end	
-	debug("CheckAspectCast:", spellName, "has", fhh.currentBuffs)
-	return fhh.currentBuffs[spellName] == nil	
+	debug("CheckAspectCast:", spellName, "has", fhh.playerBuffs)
+	return fhh.playerBuffs[spellName] == nil or fhh.playerBuffs[spellName].ended ~= nil
 end
 
 CastSpellByName = function(...)
@@ -356,7 +356,7 @@ local function ScanHunterSpells()
 		debug("  scanning tab "..bookTabIndex.." ("..tabName..") with "..numSpells.." spell(s)")
 		for spellIndex=1,numSpells do
 			ttscan:SetSpell(spellSlotNumber,"spell")
-			local ranged = FindToolTipText(ttscan, "Requires Ranged Weapon") ~= nil
+			local ranged = Utils.FindToolTipText(ttscan, "Requires Ranged Weapon") ~= nil
 			
 			spellName = GetSpellName(spellSlotNumber,"spell")
 			isSpellPassive = IsSpellPassive(spellSlotNumber,"spell")
@@ -408,8 +408,12 @@ fhh:SetScript("OnEvent", function()
 		if ScanForAutoShot() ~= true then
 			ShowToast("Can't Find Auto Shot", HH_ERROR_AUTO_SHOT)
 		end
-		fhh.currentBuffs = Utils.ScanBuffs(ttscan, "player")
-		debug("current_buffs_start", fhh.currentBuffs)
+		fhh.playerBuffs = {}
+		fhh.currentDebuffs = {}
+		Utils.ScanAuras(ttscan, "player", true, fhh.playerBuffs)
+		Utils.ScanAuras(ttscan, "player", false, fhh.currentDebuffs)
+		debug("current_buffs_start", fhh.playerBuffs)
+		debug("current_debuffs_start", fhh.currentDebuffs)
 		fhh:Show()
 	elseif event == "ACTIONBAR_SLOT_CHANGED" then
 		-- whenever the action bar changes, scan it for auto shot
@@ -418,8 +422,10 @@ fhh:SetScript("OnEvent", function()
 		-- maybe something new was added
 		ScanHunterSpells()
 	elseif event == "PLAYER_AURAS_CHANGED" then
-		fhh.currentBuffs = Utils.ScanBuffs(ttscan, "player")
-		debug("current_buffs", fhh.currentBuffs)
+		Utils.ScanAuras(ttscan, "player", true, fhh.playerBuffs)
+		Utils.ScanAuras(ttscan, "player", false, fhh.currentDebuffs)
+		debug("current_buffs", fhh.playerBuffs)
+		debug("current_debuffs", fhh.currentDebuffs)
 	end
 end)
 
@@ -540,16 +546,28 @@ SlashCmdList["HUNTERHELPER_SLASH"] = function(input)
 			end
 			return nil
 		end
+
+		-- enable smart mode (auto-switch to monkey if dazed)
+		local smartMode = false
+		if params[2] == "smart" then
+			if fhh.currentDebuffs["Dazed"] ~= nil and (fhh.currentDebuffs["Dazed"].ended == nil or GetTime() < fhh.currentDebuffs["Dazed"].ended + 5) then
+				print("SMART ASPECT: Player dazed, return to monkee!")
+				CastSpellByName("Aspect of the Monkey")
+				return
+			end
+			-- no smart activation, so we keep going
+			table.remove(params,2)
+		end
 		
 		-- go through parameters looking for aspects until we find a modifier
 		local aspectMacro = {
 			[""] = {}
 		}
 		local modKeyBuilder = {}
-		local currentMod = ""
-		
+		local currentMod = ""		
 		local pos = 2
 		table.remove(params, 1)
+
 		for i,token in pairs(params) do
 			token = string.lower(token)
 			token = string.gsub(token, "[^a-z]", "")
@@ -592,7 +610,7 @@ SlashCmdList["HUNTERHELPER_SLASH"] = function(input)
 		-- identify the player aspect state
 		-- if we have an aspect present in the sequence, we switch to the next (or roll over)
 		for i,aspect in ipairs(aspectMacro[keyState]) do
-			if fhh.currentBuffs[HUNTER_ASPECTS[aspect]] ~= nil then
+			if fhh.playerBuffs[HUNTER_ASPECTS[aspect]] ~= nil and fhh.playerBuffs[HUNTER_ASPECTS[aspect]].ended == nil then
 				-- we found an active buff in this sequence, cast the next one (or first)
 				local castAspect = aspectMacro[keyState][i+1] or aspectMacro[keyState][1]
 				CastSpellByName(HUNTER_ASPECTS[castAspect])

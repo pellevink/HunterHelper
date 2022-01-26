@@ -224,16 +224,40 @@ Utils.FindToolTipText = function(toolTip, text)
 	return nil
 end
 
-Utils.ScanBuffs = function(toolTip, unit)
-	local buffList = {}
+Utils.ScanAuras = function(toolTip, unit, buffs, currentBuffs)
+	local activeBuffs = {}
 	toolTip:SetOwner(UIParent,"ANCHOR_NONE")
 	for i=1,100 do
-		toolTip:SetUnitBuff(unit, i)		
+		if buffs then
+			toolTip:SetUnitBuff(unit, i)		
+		else
+			toolTip:SetUnitDebuff(unit, i)
+		end
+
 		local buffName = Utils.GetToolTipText(toolTip,"Left1")
 		if buffName == nil then
 			break
 		end
-		buffList[buffName] = Utils.GetToolTipTextTable(toolTip)
+		activeBuffs[buffName] = true
+		
+		if currentBuffs[buffName] == nil then
+			-- brand new buff
+			currentBuffs[buffName] = Utils.GetToolTipTextTable(toolTip)
+			currentBuffs[buffName].started = GetTime()
+		else
+			-- this buff was had at some point, but was it ACTIVE last scan?
+			if currentBuffs[buffName].ended ~= nil then
+				-- NO this buff ended at some point, so it's a new application of a historic buff
+				currentBuffs[buffName].started = GetTime()
+				currentBuffs[buffName].ended = nil
+			end
+		end		
 	end
-	return buffList
+
+	for buffName,buff in pairs(currentBuffs) do
+		if activeBuffs[buffName] == nil then
+			buff.ended = GetTime()
+		end
+	end
+	
 end
