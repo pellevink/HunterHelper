@@ -23,8 +23,11 @@ local ttscan 				= CreateFrame("GameTooltip", "ttscan_", nil, "GameTooltipTempla
 local BLIZZ_CastSpellByName = CastSpellByName
 local BLIZZ_CastSpell		= CastSpell
 local BLIZZ_UseAction		= UseAction
+local HUNTER_ASPECT_SPELLS	= Utils.Set("Aspect of the Monkey","Aspect of the Cheetah","Aspect of the Hawk","Aspect of the Beast","Aspect of the Wild")
+local HUNTER_ASPECTS		= {monkey="Aspect of the Monkey",cheetah="Aspect of the Cheetah",hawk="Aspect of the Hawk",beast="Aspect of the Beast",wild="Aspect of the Wild"}
+local MOD_KEYS				= {alt=1,shift=1,ctrl=3}
 local HH_ERROR_AUTO_SHOT 	= "HunterHelper could not locate Auto Shot on your action bar. Drag Auto Shot from your spellbook into an open action bar slot, or a macro named Auto Shot."
-local debugEnabled 			= false
+local debugEnabled 			= true
 
 local function debug(...)
 	-- local helper function to print to system console OR the global ScriptEditor addon ScriptEditor:Log function
@@ -46,71 +49,6 @@ local function print(...)
 end
 
 
-local function GetToolTipText(toolTip, side)
-	-- helper to extract toolip text 
-	local regions = {toolTip:GetRegions()}
-	for k,v in ipairs(regions) do
-		if  v:GetObjectType() == "FontString" then
-			if string.find(v:GetName(), side.."$") then
-				return v:GetText()
-			end
-		end
-	end
-	return nil
-end
-
-local function GetToolTipTextTable(toolTip)
-	local tipTable = {}	
-	local regions = {toolTip:GetRegions()}
-	for k,v in ipairs(regions) do
-		if  v:GetObjectType() == "FontString" then
-			local text = v:GetText() == nil and "" or v:GetText()
-			local _,_,side,row = string.find(v:GetName(), "([LR].+)([0-9]+)$")
-			row = tonumber(row)
-			if (side == "Left" or side == "Right") and row <= toolTip:NumLines() then
-				tipTable[side..row] = text
-			end
-		end
-	end
-	return tipTable
-end
-
-local function GetToolTipTextString(toolTip)
-	-- helper to extract the entire toolip text
-	-- each row is separated by ; and each item in the row is separated by ,
-	local tipTable = {}	
-	local regions = {toolTip:GetRegions()}
-	for k,v in ipairs(regions) do
-		if  v:GetObjectType() == "FontString" then
-			local text = v:GetText() == nil and "" or v:GetText()
-			local _,_,side,row = string.find(v:GetName(), "([LR].+)([0-9]+)$")
-			row = tonumber(row)
-			if (side == "Left" or side == "Right") and row <= toolTip:NumLines() then
-				if tipTable[row] == nil then
-					tipTable[row] = {"",""}
-				end
-				tipTable[row][side=="Right" and 2 or 1] = text
-			end
-		end
-	end
-	local tipList = {}
-	for i,row in ipairs(tipTable) do
-		tipList[i] = row[1]..","..row[2]
-	end
-	return table.concat(tipList,";")
-end
-
-local function FindToolTipText(toolTip, text)
-	local regions = {toolTip:GetRegions()}
-	for k,v in ipairs(regions) do
-		if  v:GetObjectType() == "FontString" then
-			if text == v:GetText() then
-				return v:GetName()
-			end
-		end
-	end
-	return nil
-end
 
 
 local function ShowToast(title, text, settings)
@@ -166,7 +104,7 @@ fammo:SetScript("OnEvent", function()
 	if event == "UNIT_INVENTORY_CHANGED" or event == "PLAYER_ENTERING_WORLD" then
 		ttscan:SetOwner(UIParent,"ANCHOR_NONE")
 		ttscan:SetInventoryItem("player",0)
-		local ammoName = GetToolTipText(ttscan,"Left1")
+		local ammoName = Utils.GetToolTipText(ttscan,"Left1")
 		local ammoCount = "----"
 		if ammoName == nil then
 			ammoName = "No Ammo Equipped"
@@ -185,7 +123,7 @@ fhh:SetWidth(fhh:GetParent():GetWidth()/2)
 fhh:SetHeight(fhh:GetParent():GetHeight()/2)
 fhh:SetFrameStrata("DIALOG")
 fhh:SetPoint("CENTER",0,0)
-for _,evt in pairs({"ADDON_LOADED","SPELLS_CHANGED","ACTIONBAR_SLOT_CHANGED","PLAYER_ENTERING_WORLD"}) do
+for _,evt in pairs({"ADDON_LOADED","SPELLS_CHANGED","ACTIONBAR_SLOT_CHANGED","PLAYER_ENTERING_WORLD","PLAYER_AURAS_CHANGED"}) do
 	fhh:RegisterEvent(evt)	
 end
 fhh:Hide()
@@ -194,9 +132,6 @@ local function cfout(text)
 	_G["ChatFrame1"]:AddMessage( "|cFF00FF00[ash]|r "..tostring(text) )
 end
 
-
-
-
 local function VerifyToolTip(toolTip, verify)
 	-- verify is a table containg members named according to regions in the tooltip to verify
 	-- these are usually (always?) Left<n> or Right<n>
@@ -204,7 +139,7 @@ local function VerifyToolTip(toolTip, verify)
 	
 	if verify ~= nil and type(verify) == "table" then
 		for k,v in pairs(verify) do
-			local tipText = GetToolTipText(toolTip, k)
+			local tipText = Utils.GetToolTipText(toolTip, k)
 			if tipText ~= v then
 				return false
 			end
@@ -230,7 +165,7 @@ local function CheckActionSlot(toolTip, slotId, verify)
 		if VerifyToolTip(toolTip, verify) == false then
 			return false -- failed verification
 		end		
-		local tipTitle = GetToolTipText(toolTip, "Left1")
+		local tipTitle = Utils.GetToolTipText(toolTip, "Left1")
 		if tipTitle == nil then
 			return ""
 		else 
@@ -303,42 +238,50 @@ basically, if UseAction is invoked, we need to check if the action used was a ra
 and if it was then we will engage auto shot
 
 ]]
-  
-function Set(list)
-	local set = {}
-	for _, l in ipairs(list) do set[l] = true end
-	return set
-end
 
-local function EngageRegisteredSpell(spellName)
+local function EngageAutoShot(spellName)
 	local enabledStatus = Utils.GetDBCharVar(HunterHelperDB, "EnabledSpells", spellName)
 	if spellName == SPELL_AUTO_SHOT or enabledStatus == HH_AUTO_ACTIVATE then
 		if autoShotSlot ~= nil then
 			if not IsAutoRepeatAction(autoShotSlot) then
+				-- this is a spell that activates auto shot, so we do so now!
 				BLIZZ_CastSpellByName(SPELL_AUTO_SHOT)
 			end
 		end
 	elseif enabledStatus == HH_AUTO_STOP then		
+		-- this is a spell that DISABLES auto shot so we do so now
 		print("[HH] Stopping Auto Shot since "..spellName.." is flagged DISABLED")
 		local w = GetTime() + 0.1
 		-- not happy about this timing wise
 		while GetTime() < w do
 		end		
 		SpellStopCasting()
-
 	end
+end
+
+function CheckAspectCast(spellName)
+	if HUNTER_ASPECT_SPELLS[spellName] == nil then
+		return true -- this is not an aspect
+	end	
+	debug("CheckAspectCast:", spellName, "has", fhh.currentBuffs)
+	return fhh.currentBuffs[spellName] == nil	
 end
 
 CastSpellByName = function(...)
 	debug("CastSpellByName",unpack(arg))
 	
+	if CheckAspectCast(arg[1]) == false then
+		-- casting an aspect we already have, bail out
+		return
+	end
+
 	-- if not auto shot, cast it
 	if arg[1] ~= SPELL_AUTO_SHOT then		
 		BLIZZ_CastSpellByName(unpack(arg))
 	end
 	
 	-- if the name corresponds to a spell that has been flagged to engage auto shot, we do so		
-	EngageRegisteredSpell(arg[1])
+	EngageAutoShot(arg[1])
 end
 
 
@@ -350,11 +293,18 @@ CastSpell = function(...)
 		ttscan:SetOwner(UIParent,"ANCHOR_NONE")
 		ttscan:SetSpell(arg[1],"spell")
 		
-		local spellName = GetToolTipText(ttscan, "Left1")
+		local spellName = Utils.GetToolTipText(ttscan, "Left1")
+
+		if CheckAspectCast(spellName) == false then
+			-- casting an aspect we already have, bail out
+			return
+		end
+
 		if spellName ~= SPELL_AUTO_SHOT then
 			BLIZZ_CastSpell(unpack(arg))
 		end		
-		EngageRegisteredSpell(spellName)
+		EngageAutoShot(spellName)
+			
 	else
 		BLIZZ_CastSpell(unpack(arg))
 	end
@@ -367,11 +317,17 @@ UseAction = function(...)
 	ttscan:SetAction(arg[1])
 	
 	-- does this action engage auto shot?
-	local spellName = GetToolTipText(ttscan, "Left1")
+	local spellName = Utils.GetToolTipText(ttscan, "Left1")
+
+	if CheckAspectCast(spellName) == false then
+		-- casting an aspect we already have, bail out
+		return
+	end
+	
 	if spellName ~= SPELL_AUTO_SHOT then
 		BLIZZ_UseAction(unpack(arg))
 	end	
-	EngageRegisteredSpell(spellName)			
+	EngageAutoShot(spellName)			
 end
 
 
@@ -452,6 +408,8 @@ fhh:SetScript("OnEvent", function()
 		if ScanForAutoShot() ~= true then
 			ShowToast("Can't Find Auto Shot", HH_ERROR_AUTO_SHOT)
 		end
+		fhh.currentBuffs = Utils.ScanBuffs(ttscan, "player")
+		debug("current_buffs_start", fhh.currentBuffs)
 		fhh:Show()
 	elseif event == "ACTIONBAR_SLOT_CHANGED" then
 		-- whenever the action bar changes, scan it for auto shot
@@ -459,6 +417,9 @@ fhh:SetScript("OnEvent", function()
 	elseif event == "SPELLS_CHANGED" then
 		-- maybe something new was added
 		ScanHunterSpells()
+	elseif event == "PLAYER_AURAS_CHANGED" then
+		fhh.currentBuffs = Utils.ScanBuffs(ttscan, "player")
+		debug("current_buffs", fhh.currentBuffs)
 	end
 end)
 
@@ -480,7 +441,7 @@ end)
 GameTooltip.overSpell = nil
 
 local function AddToolTipInfo()
-	local spellName = GetToolTipText(GameTooltip,"Left1")
+	local spellName = Utils.GetToolTipText(GameTooltip,"Left1")
 	GameTooltip.overSpell = spellName
 	local tipText = "IGNORED"
 	local tipColor = {1,1,1}
@@ -558,6 +519,74 @@ SlashCmdList["HUNTERHELPER_SLASH"] = function(input)
 		|cFF00FF00]]..HH_SLASH_COMMAND..[[ unlock|lock|r
 		Unlock or lock frames and make them draggable across the screen, or lock them in place
 		]])
+	elseif params[1] == "aspect" and params[2] ~= nil then
+		-- aspect <aspect> {<aspect>} {'['<mod>']' <aspect> {<aspect>}
+		
+
+		-- brackets are just decorative, the parser can work without separation characters
+		-- e.g. you could write /huh aspect cheetah monkey alt hawk shift beast
+
+		function MatchAspect(text)
+			text = string.lower(text)
+			for aspect,spell in pairs(HUNTER_ASPECTS) do
+				if string.find(aspect, "^"..text) then
+					return aspect
+				end
+			end
+			return nil
+		end
+		
+		-- go through parameters looking for aspects until we find a modifier
+		local aspectMacro = {
+			[""] = {}
+		}
+		local modKeyBuilder = {}
+		local currentMod = ""
+		
+		local pos = 2
+		table.remove(params, 1)
+		for i,token in pairs(params) do
+			token = string.lower(token)
+			token = string.gsub(token, "[^a-z]", "")
+			local nextAspect = MatchAspect(token)
+			if nextAspect ~= nil then
+				-- this was an aspect name
+				if modKeyBuilder ~= nil then
+					-- a new modifier list is started
+					currentMod = (modKeyBuilder.alt and "alt" or "")..(modKeyBuilder.ctrl and "ctrl" or "")..(modKeyBuilder.shift and "shift" or "")
+					if currentMod ~= "" and aspectMacro[currentMod] ~= nil then
+						print("ERROR: The macro duplicates the '"..currentMod.."' state")
+						return
+					end
+					aspectMacro[currentMod] = {}
+					modKeyBuilder = nil
+				end
+				table.insert(aspectMacro[currentMod], nextAspect)
+			elseif MOD_KEYS[token] ~= nil then
+				-- a valid mod key, build the mod key identifier: [alt][ctrl][shift]
+				if modKeyBuilder == nil then
+					modKeyBuilder = {}
+				end
+				modKeyBuilder[token] = true
+			else
+				print("ERROR: Unrecognized aspect/modifier key '"..token.."'")
+				return
+			end
+		end
+
+		local keyState = (IsAltKeyDown() and "alt" or "")..(IsControlKeyDown() and "ctrl" or "")..(IsShiftKeyDown() and "shift" or "")
+		 
+		print(aspectMacro)		
+		print("keystate", tostring(keyState))
+
+		if aspectMacro[keyState] == nil then
+			print("WARNING: This macro has no state for "..keyState..", falling back on normal")
+			keyState = ""
+		end
+
+		-- identify which state the player is in
+		CastSpellByName("Aspect of the Hawk")
+
 	elseif input == "resetframes" or input == "rf" then
 		Utils.SetDBCharVar(HunterHelperDB, {pos={"CENTER",0,0}}, "AmmoFrame")
 		fammo:ClearAllPoints()
@@ -601,7 +630,7 @@ SlashCmdList["HUNTERHELPER_SLASH"] = function(input)
 		local spellName = params[2]
 		if spellName == nil then
 			if GameTooltip.overSpell ~= nil then
-				spellName = GetToolTipText(GameTooltip,"Left1")
+				spellName = Utils.GetToolTipText(GameTooltip,"Left1")
 			else
 				print("ERROR: Mouse over a spell in your spellbook or on the action bar")
 				return
