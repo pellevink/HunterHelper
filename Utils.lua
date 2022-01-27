@@ -1,6 +1,12 @@
-local version = "101"
+local this_version = "102"
 
-Utils = {}
+-- if the global Utils object has already loaded
+-- we will overwrite it if is outdated or doesn't exist
+if Utils == nil or Utils.version == nil or Utils.version < this_version then	
+-- overwrite / create the global Utils object
+Utils = {
+	version = this_version
+}
 
 Utils.SetDBVar = function(db, value, ...)
 	if arg.n == 0 then
@@ -254,10 +260,34 @@ Utils.ScanAuras = function(toolTip, unit, buffs, currentBuffs)
 		end		
 	end
 
+	-- go through all the buffs the player has and see if it was currently active
+	-- if it ISN'T currently active, and NOT ALREADY flagged as ended, do so.
 	for buffName,buff in pairs(currentBuffs) do
-		if activeBuffs[buffName] == nil then
+		if activeBuffs[buffName] == nil and buff.ended == nil then
 			buff.ended = GetTime()
 		end
 	end
 	
 end
+
+Utils.CreateTimer = function(parentObject, timerName, interval)
+	parentObject[timerName] = {
+		interval = interval,
+		next = GetTime() + interval
+	}
+end
+
+Utils.UpdateReady = function(parentObject, timerName)
+	if parentObject == nil or parentObject[timerName] ==  nil then		
+		return false
+	end
+	
+	if GetTime() >= parentObject[timerName].next then
+		parentObject[timerName].next = GetTime() + parentObject[timerName].interval
+		return true
+	else
+		return false
+	end
+end
+
+end -- end check to overwrite

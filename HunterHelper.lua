@@ -27,7 +27,7 @@ local HUNTER_ASPECT_SPELLS	= Utils.Set("Aspect of the Monkey","Aspect of the Che
 local HUNTER_ASPECTS		= {monkey="Aspect of the Monkey",cheetah="Aspect of the Cheetah",hawk="Aspect of the Hawk",beast="Aspect of the Beast",wild="Aspect of the Wild"}
 local MOD_KEYS				= {alt=1,shift=1,ctrl=3}
 local HH_ERROR_AUTO_SHOT 	= "HunterHelper could not locate Auto Shot on your action bar. Drag Auto Shot from your spellbook into an open action bar slot, or a macro named Auto Shot."
-local debugEnabled 			= true
+local debugEnabled 			= false
 
 local function debug(...)
 	-- local helper function to print to system console OR the global ScriptEditor addon ScriptEditor:Log function
@@ -254,7 +254,7 @@ local function EngageAutoShot(spellName)
 		local w = GetTime() + 0.1
 		-- not happy about this timing wise
 		while GetTime() < w do
-		end		
+		end
 		SpellStopCasting()
 	end
 end
@@ -409,11 +409,11 @@ fhh:SetScript("OnEvent", function()
 			ShowToast("Can't Find Auto Shot", HH_ERROR_AUTO_SHOT)
 		end
 		fhh.playerBuffs = {}
-		fhh.currentDebuffs = {}
+		fhh.playerDebuffs = {}
 		Utils.ScanAuras(ttscan, "player", true, fhh.playerBuffs)
-		Utils.ScanAuras(ttscan, "player", false, fhh.currentDebuffs)
+		Utils.ScanAuras(ttscan, "player", false, fhh.playerDebuffs)
 		debug("current_buffs_start", fhh.playerBuffs)
-		debug("current_debuffs_start", fhh.currentDebuffs)
+		debug("current_debuffs_start", fhh.playerDebuffs)
 		fhh:Show()
 	elseif event == "ACTIONBAR_SLOT_CHANGED" then
 		-- whenever the action bar changes, scan it for auto shot
@@ -423,9 +423,9 @@ fhh:SetScript("OnEvent", function()
 		ScanHunterSpells()
 	elseif event == "PLAYER_AURAS_CHANGED" then
 		Utils.ScanAuras(ttscan, "player", true, fhh.playerBuffs)
-		Utils.ScanAuras(ttscan, "player", false, fhh.currentDebuffs)
+		Utils.ScanAuras(ttscan, "player", false, fhh.playerDebuffs)
 		debug("current_buffs", fhh.playerBuffs)
-		debug("current_debuffs", fhh.currentDebuffs)
+		debug("current_debuffs", fhh.playerDebuffs)
 	end
 end)
 
@@ -550,7 +550,7 @@ SlashCmdList["HUNTERHELPER_SLASH"] = function(input)
 		-- enable smart mode (auto-switch to monkey if dazed)
 		local smartMode = false
 		if params[2] == "smart" then
-			if fhh.currentDebuffs["Dazed"] ~= nil and (fhh.currentDebuffs["Dazed"].ended == nil or GetTime() < fhh.currentDebuffs["Dazed"].ended + 5) then
+			if fhh.playerDebuffs["Dazed"] ~= nil and (fhh.playerDebuffs["Dazed"].ended == nil or GetTime() < fhh.playerDebuffs["Dazed"].ended + 3) then
 				print("SMART ASPECT: Player dazed, return to monkee!")
 				CastSpellByName("Aspect of the Monkey")
 				return
@@ -696,3 +696,10 @@ SlashCmdList["HUNTERHELPER_SLASH"] = function(input)
 		GameTooltip:Show()
 	end	
 end
+-- globally accessible API for debugging purposes
+HunterHelper = {
+	frames = {
+		fhh = fhh,
+		fammo = fammo
+	}
+}
