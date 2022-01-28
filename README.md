@@ -6,6 +6,9 @@ In order to measure distance appropriately the Auto Shot spell must be dragged f
 By default, ALL hunter spells that require ranged weapons will be enabled, EXCEPT Scatter Shot.
 Any newly learned ranged spells will have the auto shot activation enabled.
 
+## Recommended Add Ons
+For maximum enjoyment, also consider using https://github.com/pellevink/ToastMaster with this Addon.
+
 ## Features
 
 ### Spammable Auto Shot - Prevent Auto Shot Off Toggle
