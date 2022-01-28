@@ -1,12 +1,87 @@
-local this_version = "102"
+local this_version = "103"
 
 -- if the global Utils object has already loaded
 -- we will overwrite it if is outdated or doesn't exist
 if Utils == nil or Utils.version == nil or Utils.version < this_version then	
 -- overwrite / create the global Utils object
 Utils = {
-	version = this_version
+	version = this_version,
+	ttscan = CreateFrame("GameTooltip", "utils_ttscan_", nil, "GameTooltipTemplate"), -- a scanning tooltip
+	CHAT_COMBAT = {
+		"CHAT_MSG_COMBAT_CREATURE_VS_CREATURE_HITS",
+		"CHAT_MSG_COMBAT_CREATURE_VS_CREATURE_MISSES",
+		"CHAT_MSG_COMBAT_CREATURE_VS_PARTY_HITS", 
+		"CHAT_MSG_COMBAT_CREATURE_VS_PARTY_MISSES" ,
+		"CHAT_MSG_COMBAT_CREATURE_VS_SELF_HITS" ,
+		"CHAT_MSG_COMBAT_CREATURE_VS_SELF_MISSES", 
+		"CHAT_MSG_COMBAT_FRIENDLY_DEATH" ,
+		"CHAT_MSG_COMBAT_FRIENDLYPLAYER_HITS" ,
+		"CHAT_MSG_COMBAT_FRIENDLYPLAYER_MISSES",
+		"CHAT_MSG_COMBAT_HONOR_GAIN" ,
+		"CHAT_MSG_COMBAT_HOSTILE_DEATH" ,
+		"CHAT_MSG_COMBAT_HOSTILEPLAYER_HITS" ,
+		"CHAT_MSG_COMBAT_HOSTILEPLAYER_MISSES",
+		"CHAT_MSG_COMBAT_MISC_INFO" ,
+		"CHAT_MSG_COMBAT_PARTY_HITS" ,
+		"CHAT_MSG_COMBAT_PARTY_MISSES",
+		"CHAT_MSG_COMBAT_PET_HITS" ,
+		"CHAT_MSG_COMBAT_PET_MISSES",
+		"CHAT_MSG_COMBAT_SELF_HITS", 
+		"CHAT_MSG_COMBAT_SELF_MISSES",
+		"CHAT_MSG_COMBAT_XP_GAIN",
+		"CHAT_MSG_SPELL_AURA_GONE_OTHER",
+		"CHAT_MSG_SPELL_AURA_GONE_PARTY",
+		"CHAT_MSG_SPELL_AURA_GONE_SELF",
+		"CHAT_MSG_SPELL_CREATURE_VS_CREATURE_BUFF",
+		"CHAT_MSG_SPELL_CREATURE_VS_CREATURE_DAMAGE",
+		"CHAT_MSG_SPELL_CREATURE_VS_PARTY_BUFF",
+		"CHAT_MSG_SPELL_CREATURE_VS_PARTY_DAMAGE",
+		"CHAT_MSG_SPELL_CREATURE_VS_SELF_BUFF",
+		"CHAT_MSG_SPELL_CREATURE_VS_SELF_DAMAGE",
+		"CHAT_MSG_SPELL_DAMAGESHIELDS_ON_OTHERS",
+		"CHAT_MSG_SPELL_DAMAGESHIELDS_ON_SELF",
+		"CHAT_MSG_SPELL_FAILED_LOCALPLAYER",
+		"CHAT_MSG_SPELL_FRIENDLYPLAYER_BUFF",
+		"CHAT_MSG_SPELL_FRIENDLYPLAYER_DAMAGE",
+		"CHAT_MSG_SPELL_HOSTILEPLAYER_BUFF",
+		"CHAT_MSG_SPELL_HOSTILEPLAYER_DAMAGE",
+		"CHAT_MSG_SPELL_ITEM_ENCHANTMENTS",
+		"CHAT_MSG_SPELL_PARTY_BUFF",
+		"CHAT_MSG_SPELL_PARTY_DAMAGE",
+		"CHAT_MSG_SPELL_PERIODIC_CREATURE_BUFFS",
+		"CHAT_MSG_SPELL_PERIODIC_CREATURE_DAMAGE",
+		"CHAT_MSG_SPELL_PERIODIC_FRIENDLYPLAYER_BUFFS",
+		"CHAT_MSG_SPELL_PERIODIC_FRIENDLYPLAYER_DAMAGE",
+		"CHAT_MSG_SPELL_PERIODIC_HOSTILEPLAYER_BUFFS",
+		"CHAT_MSG_SPELL_PERIODIC_HOSTILEPLAYER_DAMAGE",
+		"CHAT_MSG_SPELL_PERIODIC_PARTY_BUFFS",
+		"CHAT_MSG_SPELL_PERIODIC_PARTY_DAMAGE",
+		"CHAT_MSG_SPELL_PERIODIC_SELF_BUFFS",
+		"CHAT_MSG_SPELL_PERIODIC_SELF_DAMAGE",
+		"CHAT_MSG_SPELL_PET_BUFF",
+		"CHAT_MSG_SPELL_PET_DAMAGE",
+		"CHAT_MSG_SPELL_SELF_BUFF",
+		"CHAT_MSG_SPELL_SELF_DAMAGE",
+		"CHAT_MSG_SPELL_TRADESKILLS",
+	}
 }
+
+Utils.ttscan.chatCombatCallbacks = {}
+for k,v in pairs(Utils.CHAT_COMBAT) do
+	Utils.ttscan:RegisterEvent(v)
+end
+
+Utils.ttscan:SetScript("OnEvent", function()
+	-- the ttscan only listens for these old chat events
+	for k,v in pairs(Utils.ttscan.chatCombatCallbacks) do
+		Utils.ttscan.chatCombatCallbacks(event, arg1)
+	end
+end)
+
+Utils.RegisterChatCombatEvent = function(fnCallback)
+	table.insert(Utils.ttscan.chatCombatCallbacks, fnCallback)
+end
+
 
 Utils.SetDBVar = function(db, value, ...)
 	if arg.n == 0 then
@@ -163,6 +238,26 @@ Utils.Set = function(...)
 	return set
 end
 
+Utils.GetInventoryTooltip = function(slotId)
+	Utils.ttscan:SetOwner(UIParent, "ANCHOR_NONE")
+	Utils.ttscan:SetInventoryItem("player", slotId)
+	local ttt =  Utils.GetToolTipTextTable(Utils.ttscan)
+	return ttt and ttt["Left1"], ttt or nil
+end
+
+Utils.GetSpellTooltip = function(slotId, spellBookId)
+	Utils.ttscan:SetOwner(UIParent, "ANCHOR_NONE")
+	Utils.ttscan:SetSpell(slotId, spellBookId)		
+	local ttt =  Utils.GetToolTipTextTable(Utils.ttscan)
+	return ttt and ttt["Left1"], ttt or nil
+end
+
+Utils.GetActionTooltip = function(slotId)
+	Utils.ttscan:SetOwner(UIParent, "ANCHOR_NONE")
+	Utils.ttscan:SetAction(slotId, spellBookId)		
+	local ttt =  Utils.GetToolTipTextTable(Utils.ttscan)
+	return ttt and ttt["Left1"], ttt or nil
+end
 
 Utils.GetToolTipText = function(toolTip, side)
 	-- helper to extract toolip text 
@@ -178,7 +273,7 @@ Utils.GetToolTipText = function(toolTip, side)
 end
 
 Utils.GetToolTipTextTable = function(toolTip)
-	local tipTable = {}	
+	local tipTable = nil
 	local regions = {toolTip:GetRegions()}
 	for k,v in ipairs(regions) do
 		if  v:GetObjectType() == "FontString" then
@@ -186,6 +281,7 @@ Utils.GetToolTipTextTable = function(toolTip)
 			local _,_,side,row = string.find(v:GetName(), "([LR].+)([0-9]+)$")
 			row = tonumber(row)
 			if (side == "Left" or side == "Right") and row <= toolTip:NumLines() then
+				if tipTable == nil then tipTable = {} end
 				tipTable[side..row] = text
 			end
 		end

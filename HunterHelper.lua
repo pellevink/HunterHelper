@@ -102,9 +102,7 @@ fammo:SetScript("OnEvent", function()
 	end
 
 	if event == "UNIT_INVENTORY_CHANGED" or event == "PLAYER_ENTERING_WORLD" then
-		ttscan:SetOwner(UIParent,"ANCHOR_NONE")
-		ttscan:SetInventoryItem("player",0)
-		local ammoName = Utils.GetToolTipText(ttscan,"Left1")
+		local ammoName = Utils.GetInventoryTooltip(INVENTORY_SLOT_AMMO)
 		local ammoCount = "----"
 		if ammoName == nil then
 			ammoName = "No Ammo Equipped"
@@ -290,11 +288,7 @@ CastSpell = function(...)
 	debug("CastSpell",unpack(arg))
 	if arg[2] == "spell" then
 		-- check the spellbook, if this corresponds to a spell that engages auto shot, we do so
-		ttscan:SetOwner(UIParent,"ANCHOR_NONE")
-		ttscan:SetSpell(arg[1],"spell")
-		
-		local spellName = Utils.GetToolTipText(ttscan, "Left1")
-
+		local spellName = Utils.GetSpellTooltip(arg[1], "spell")
 		if CheckAspectCast(spellName) == false then
 			-- casting an aspect we already have, bail out
 			return
@@ -313,12 +307,8 @@ end
 
 UseAction = function(...)
 	debug("UseAction",unpack(arg))
-	ttscan:SetOwner(UIParent,"ANCHOR_NONE")
-	ttscan:SetAction(arg[1])
-	
-	-- does this action engage auto shot?
-	local spellName = Utils.GetToolTipText(ttscan, "Left1")
 
+	local spellName = Utils.GetActionTooltip( arg[1] )
 	if CheckAspectCast(spellName) == false then
 		-- casting an aspect we already have, bail out
 		return
